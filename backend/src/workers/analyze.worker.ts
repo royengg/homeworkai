@@ -2,37 +2,51 @@ import { Worker } from "bullmq";
 import { processAnalyzeJob } from "../processors/analyze.processor";
 import { Jobs } from "../types/job.types";
 import { Job } from "bullmq";
-import { redisClient } from "../config/redis.config";
+import { redis } from "../config/redis.config";
+import { logger } from "../config/logger.config";
+
+if (!redis) {
+  throw new Error(
+    "Redis connection is required for the worker. Please set REDIS_URL in your .env file."
+  );
+}
 
 const worker = new Worker<Jobs>(
   "analyzeJobs",
   async function worker(job: Job<Jobs>) {
+    logger.info("Processing analysis job", { 
+      jobId: job.id, 
+      attemptsMade: job.attemptsMade 
+    });
     await processAnalyzeJob(job);
-    console.log("Processing job:", job);
   },
-  { connection: redisClient }
+  { connection: redis }
 );
 
 worker.on("completed", (job) => {
-  console.log(`Job ${job.id} completed`);
+  logger.info("Analysis job completed", { jobId: job.id });
 });
 
 worker.on("failed", (job, err) => {
   if (job) {
-    console.log(`Job ${job.id} failed with error: ${err.message}`);
+    logger.error("Analysis job failed", { 
+      jobId: job.id, 
+      error: err.message,
+      attemptsMade: job.attemptsMade 
+    });
   }
 });
 
 process.on("SIGINT", async () => {
-  console.log("SIGINT received, closing worker...");
+  logger.info("SIGINT received, closing worker...");
   await worker.close();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, closing worker...");
+  logger.info("SIGTERM received, closing worker...");
   await worker.close();
   process.exit(0);
 });
 
-console.log("Worker started");
+logger.info("Analysis worker started");

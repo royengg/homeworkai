@@ -6,6 +6,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { ParsedResult } from "../types/parsed-result.types";
+import { logger } from "../config/logger.config";
 
 export async function parsePDFController(
   req: AuthenticatedRequest,
@@ -51,16 +52,33 @@ export async function parsePDFController(
     const response = await s3.send(command);
     const body = response.Body;
 
+    logger.debug("S3 response received", { 
+      contentType: response.ContentType,
+      contentLength: response.ContentLength,
+      bodyType: typeof body,
+      isReadable: body instanceof Readable
+    });
+
     if (body instanceof Readable) {
       const chunks: Buffer[] = [];
       for await (const chunk of body) {
         chunks.push(chunk as Buffer);
       }
       const buffer = Buffer.concat(chunks);
+      
+      logger.debug("PDF buffer created", { 
+        bufferSize: buffer.length 
+      });
+
       const pdfData = (await parsePDF(buffer)) as ParsedResult;
-      console.log(pdfData);
+      
+      logger.info("PDF parsed successfully", { 
+        uploadId, 
+        textLength: pdfData.text?.length || 0
+      });
 
       if (!pdfData.text || pdfData.text === "") {
+        logger.warn("Parsed PDF text is empty", { uploadId });
         await prisma.upload.update({
           where: {
             uploadId: uploadId,
@@ -69,10 +87,10 @@ export async function parsePDFController(
             status: "failed",
           },
         });
-        return res.status(400).json({ error: "Failed to parse PDF" });
+        return res.status(400).json({ error: "Failed to parse PDF: No text content found" });
       }
 
-      const update = await prisma.upload.update({
+      await prisma.upload.update({
         where: {
           uploadId: uploadId,
         },
@@ -81,7 +99,7 @@ export async function parsePDFController(
         },
       });
 
-      const parsedResult = await prisma.parseResult.upsert({
+      await prisma.parseResult.upsert({
         where: {
           uploadId: uploadId,
         },
@@ -96,9 +114,17 @@ export async function parsePDFController(
 
       return res.json(pdfData);
     } else {
-      return res.status(500).json({ error: "Failed to parse PDF" });
+      logger.error("S3 body is not a readable stream", { bodyType: typeof body });
+      return res.status(500).json({ error: "Failed to parse PDF: storage error" });
     }
   } catch (e) {
-    return res.status(500).json({ error: "Failed to parse PDF" });
+    logger.error("Error in parsePDFController", { 
+      error: e instanceof Error ? e.message : "Unknown error",
+      stack: e instanceof Error ? e.stack : undefined 
+    });
+    return res.status(500).json({ 
+      error: "Failed to parse PDF", 
+      details: e instanceof Error ? e.message : "Unknown error" 
+    });
   }
 }

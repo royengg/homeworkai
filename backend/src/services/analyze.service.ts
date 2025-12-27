@@ -6,6 +6,7 @@ import {
 } from "@google/generative-ai";
 import { HOMEWORK_SOLVER_PROMPT } from "../utils/prompt.utils";
 import { AnalysisOutput } from "../types/analysis-output.types";
+import { logger } from "../config/logger.config";
 
 const GOOGLE_API_KEY: string = process.env.GOOGLE_API_KEY as string;
 if (!GOOGLE_API_KEY) {
@@ -54,21 +55,28 @@ const llm = new GoogleGenerativeAI(GOOGLE_API_KEY);
 
 export async function runLLM(pdfData: string): Promise<AnalysisOutput> {
   const model = llm.getGenerativeModel({
-    model: "gemini-2.5-pro",
+    model: "gemini-3.0-flash",
     generationConfig,
   });
 
   const prompt = `${HOMEWORK_SOLVER_PROMPT}\n\nINPUT JSON: ${pdfData}`;
-  console.log("prompt: ", prompt);
+  logger.debug("LLM prompt generated", { promptLength: prompt.length });
   const res = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
-  console.log(res);
+  logger.debug("LLM response received", { 
+    candidatesCount: res.response.candidates?.length,
+    usageMetadata: res.response.usageMetadata 
+  });
 
   const text = res.response.text();
-  console.log("LLM Raw Output:", text);
+  logger.info("LLM analysis completed", { outputLength: text.length });
+
+  // Clean up potential markdown code blocks
+  const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
+
   try {
-    return JSON.parse(text) as AnalysisOutput;
+    return JSON.parse(cleanText) as AnalysisOutput;
   } catch {
     throw new Error("LLM returned non-JSON output");
   }

@@ -6,6 +6,7 @@ import { Prisma, AnalysisStatus } from "@prisma/client";
 import { resultSchema } from "../schema/result.schema";
 import { Jobs } from "../types/job.types";
 import { Job } from "bullmq";
+import { logger } from "../config/logger.config";
 
 export async function processAnalyzeJob(job: Job<Jobs>) {
   const parsed = jobSchema.safeParse(job.data);
@@ -57,7 +58,13 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
       });
       throw new Error("Invalid input");
     }
+    logger.info("Starting LLM analysis", { 
+      jobId: job.id, 
+      inputLength: input.length 
+    });
     const output = await runLLM(input);
+    logger.info("LLM analysis completed", { jobId: job.id });
+
     if (!output || typeof output !== "object" || output === null) {
       throw new Error("Invalid output");
     }
@@ -87,6 +94,26 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
       },
     });
   } catch (error) {
-    throw new Error("Error processing job");
+    logger.error("Error processing analysis job", { 
+      jobId: job.id, 
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    try {
+      if (analysisId) {
+        await prisma.analysisResult.update({
+          where: { id: analysisId },
+          data: { 
+            status: AnalysisStatus.failed,
+            error: error instanceof Error ? error.message : "Unknown error"
+          },
+        });
+      }
+    } catch (dbError) {
+      logger.error("Failed to update analysis status to failed", { dbError });
+    }
+
+    throw error; 
   }
 }

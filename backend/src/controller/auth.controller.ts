@@ -32,9 +32,16 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: "Invalid password" });
     }
     const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
-    return res.json({ token });
+    return res.json({ 
+      token,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        email: user.email
+      }
+    });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }
@@ -45,11 +52,7 @@ export async function register(req: Request, res: Response) {
   if (!parsed.success) {
     return res.status(400).send({ error: "Invalid credentials" });
   }
-  const { name, email, password, confirmPassword } = parsed.data;
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ error: "Passwords do not match" });
-  }
+  const { name, email, password } = parsed.data;
 
   try {
     const existingUser = await prisma.user.findUnique({
@@ -63,9 +66,18 @@ export async function register(req: Request, res: Response) {
     const user = await prisma.user.create({
       data: { name, email, password: hashedPassword },
     });
+    
+    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
+      expiresIn: "24h",
+    });
+    
     return res.status(201).json({
-      message: "User registered successfully",
-      payload: { userId: user.userId, name: user.name },
+      token,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        email: user.email
+      }
     });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });

@@ -18,7 +18,11 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   const parsed = presignSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid request body" });
+    console.log("Validation error:", parsed.error.issues);
+    return res.status(400).json({ 
+      error: "Invalid request body",
+      details: parsed.error.issues 
+    });
   }
 
   const user = req.user;
@@ -27,7 +31,12 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   }
 
   const { filename, contentType, folder } = parsed.data;
-  const key = `${sanitizeFolder(folder)}${sanitizeFilename(filename)}`;
+  const timestamp = Date.now();
+  const san = sanitizeFilename(filename);
+  const ext = san.lastIndexOf(".") !== -1 ? san.substring(san.lastIndexOf(".")) : "";
+  const name = san.lastIndexOf(".") !== -1 ? san.substring(0, san.lastIndexOf(".")) : san;
+  
+  const key = `${sanitizeFolder(folder)}${name}_${timestamp}${ext}`;
 
   try {
     const { url, bucket, expiresAt } = await presignPut({
@@ -56,6 +65,11 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
       expiresAt,
     });
   } catch (e) {
+    if (e instanceof Error) {
+      console.error("Presign upload error:", e.message, e.stack);
+    } else {
+      console.error("Presign upload error:", e);
+    }
     return res.status(500).json({ error: "Failed to create presigned URL" });
   }
 }
@@ -149,7 +163,12 @@ export async function getUpload(req: AuthenticatedRequest, res: Response) {
   try {
     const upload = await prisma.upload.findFirst({
       where: { uploadId: uploadId, userId: user.userId },
-      include: { parseResult: true, analyses: true },
+      include: { 
+        parseResult: true, 
+        analyses: {
+          orderBy: { createdAt: 'desc' }
+        } 
+      },
     });
 
     if (!upload) {

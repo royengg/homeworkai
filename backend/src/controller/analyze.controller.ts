@@ -2,6 +2,7 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { Response } from "express";
 import { prisma } from "../db/prisma.db";
 import { enqueueAnalysisJob } from "../queues/analysis.queue";
+import { logger } from "../config/logger.config";
 
 export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
   const uploadId = req.params.uploadId;
@@ -60,7 +61,7 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
       payload: { analysisId: newAnalysis.id },
     });
   } catch (error) {
-    console.log(error);
+    logger.error("Error running analysis", { error, uploadId });
     return res.status(500).json({
       message: error instanceof Error ? error.message : "Unknown error",
       payload: "",

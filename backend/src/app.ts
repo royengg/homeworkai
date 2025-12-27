@@ -6,27 +6,88 @@ import parseRoutes from "./routes/parse.route";
 import uploadRoutes from "./routes/upload.route";
 import authRoutes from "./routes/auth.route";
 import analyzeRoutes from "./routes/analyze.route";
+import healthRoutes from "./routes/health.route";
 import { authMiddleware } from "./middleware/auth.middleware";
+import { corsOptions } from "./config/cors.config";
+import { apiLimiter, authLimiter, uploadLimiter, analyzeLimiter } from "./middleware/ratelimit.middleware";
+import { loggingMiddleware } from "./middleware/logging.middleware";
+import { errorMiddleware, setupErrorHandlers } from "./middleware/error.middleware";
+import { logger } from "./config/logger.config";
+import { config } from "./config/app.config";
 
 dotenv.config();
 
-const PORT = process.env.PORT || "3000";
+const PORT = config.port;
 
 export const app = express();
 
-app.use(cors());
+
+setupErrorHandlers();
+
+
+app.set("trust proxy", 1);
+
+
+app.use(cors(corsOptions));
+
+
 app.use(express.json());
 
-const apiRoutes = express.Router();
 
+app.use(loggingMiddleware);
+
+
+app.use("/health", healthRoutes);
+
+
+const apiRoutes = express.Router();
 app.use("/api/v1", apiRoutes);
 
+
+apiRoutes.use(apiLimiter);
+
+
+apiRoutes.use("/auth", authLimiter, authRoutes);
 apiRoutes.use("/users", userRoutes);
-apiRoutes.use("/auth", authRoutes);
+
+
 apiRoutes.use("/parse", authMiddleware, parseRoutes);
 apiRoutes.use("/upload", authMiddleware, uploadRoutes);
-apiRoutes.use("/analyze", authMiddleware, analyzeRoutes);
+apiRoutes.use("/analyze", authMiddleware, analyzeLimiter, analyzeRoutes);
 
-app.listen(PORT, () => {
-  console.log("Server is running");
+
+app.use(errorMiddleware);
+
+
+let server: any;
+
+function gracefulShutdown(signal: string) {
+  logger.info(`${signal} received, starting graceful shutdown`);
+  
+  if (server) {
+    server.close(() => {
+      logger.info("HTTP server closed");
+      process.exit(0);
+    });
+
+    
+    setTimeout(() => {
+      logger.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, 30000);
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+
+server = app.listen(PORT, () => {
+  logger.info(`Server is running on port ${PORT}`, {
+    nodeEnv: config.nodeEnv,
+    port: PORT,
+  });
 });
+
