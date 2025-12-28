@@ -4,7 +4,7 @@ import {
   type Schema,
   type GenerationConfig,
 } from "@google/generative-ai";
-import { HOMEWORK_SOLVER_PROMPT } from "../utils/prompt.utils";
+import { HOMEWORK_SOLVER_PROMPT, ASSIGNMENT_BLUEPRINT_PROMPT, ASSIGNMENT_SECTION_PROMPT } from "../utils/prompt.utils";
 import { AnalysisOutput } from "../types/analysis-output.types";
 import { logger } from "../config/logger.config";
 
@@ -12,6 +12,8 @@ const GOOGLE_API_KEY: string = process.env.GOOGLE_API_KEY as string;
 if (!GOOGLE_API_KEY) {
   throw new Error("GOOGLE_API_KEY is not set");
 }
+
+const llm = new GoogleGenerativeAI(GOOGLE_API_KEY);
 
 const outputSchema: Schema = {
   type: SchemaType.OBJECT,
@@ -44,40 +46,117 @@ const outputSchema: Schema = {
   required: ["document_id", "questions"],
 };
 
-const generationConfig: GenerationConfig = {
-  temperature: 0.2,
-  maxOutputTokens: 8000,
-  responseMimeType: "application/json",
-  responseSchema: outputSchema,
+const blueprintSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    title: { type: SchemaType.STRING },
+    description: { type: SchemaType.STRING },
+    sections: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: { type: SchemaType.STRING },
+          title: { type: SchemaType.STRING },
+          objectives: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          key_points: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+        },
+        required: ["id", "title", "objectives", "key_points"],
+      },
+    },
+  },
+  required: ["title", "description", "sections"],
 };
 
-const llm = new GoogleGenerativeAI(GOOGLE_API_KEY);
+const sectionSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    section_id: { type: SchemaType.STRING },
+    content: { type: SchemaType.STRING },
+    citations: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+  },
+  required: ["section_id", "content"],
+};
+
+const MODELS_FALLBACK_CHAIN = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash-lite",
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
+  "gemini-pro-latest",
+];
+
+async function callModelResiliently(config: any, prompt: string) {
+  let lastError: any = null;
+  
+  for (const modelName of MODELS_FALLBACK_CHAIN) {
+    try {
+      const model = llm.getGenerativeModel({
+        model: modelName,
+        generationConfig: config,
+      });
+      const res = await model.generateContent(prompt);
+      const rawText = res.response.text();
+      
+      const cleaned = rawText
+        .replace(/```json\n?|```/g, "")
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+        .trim();
+
+      try {
+        return JSON.parse(cleaned);
+      } catch (parseErr) {
+        logger.error(`JSON Parse Error with ${modelName}`, { 
+          error: parseErr instanceof Error ? parseErr.message : parseErr,
+          snippet: cleaned.substring(0, 100) + "..."
+        });
+        lastError = parseErr;
+        continue;
+      }
+    } catch (e: any) {
+      lastError = e;
+      const errorMessage = e.message?.toLowerCase() || "";
+      if (errorMessage.includes("quota") || errorMessage.includes("429") || errorMessage.includes("rate limit")) {
+        logger.warn(`Quota or Rate Limit hit for ${modelName}, falling back...`);
+        continue; 
+      }
+      throw e; 
+    }
+  }
+  
+  throw lastError || new Error("All models in fallback chain failed to provide valid output");
+}
 
 export async function runLLM(pdfData: string): Promise<AnalysisOutput> {
-  const model = llm.getGenerativeModel({
-    model: "gemini-3.0-flash",
-    generationConfig,
-  });
-
+  const config = {
+    temperature: 0.2,
+    maxOutputTokens: 8000,
+    responseMimeType: "application/json",
+    responseSchema: outputSchema,
+  };
   const prompt = `${HOMEWORK_SOLVER_PROMPT}\n\nINPUT JSON: ${pdfData}`;
-  logger.debug("LLM prompt generated", { promptLength: prompt.length });
-  const res = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-  });
-  logger.debug("LLM response received", { 
-    candidatesCount: res.response.candidates?.length,
-    usageMetadata: res.response.usageMetadata 
-  });
+  return await callModelResiliently(config, prompt);
+}
 
-  const text = res.response.text();
-  logger.info("LLM analysis completed", { outputLength: text.length });
+export async function generateBlueprint(pdfData: string): Promise<any> {
+  const config = {
+    temperature: 0.3,
+    responseMimeType: "application/json",
+    responseSchema: blueprintSchema,
+  };
+  const prompt = `${ASSIGNMENT_BLUEPRINT_PROMPT}\n\nINPUT SOURCE MATERIAL: ${pdfData}`;
+  return await callModelResiliently(config, prompt);
+}
 
-  // Clean up potential markdown code blocks
-  const cleanText = text.replace(/```json\n?|\n?```/g, "").trim();
-
-  try {
-    return JSON.parse(cleanText) as AnalysisOutput;
-  } catch {
-    throw new Error("LLM returned non-JSON output");
-  }
+export async function generateSection(blueprint: any, section: any, pdfData: string): Promise<any> {
+  const config = {
+    temperature: 0.5,
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+    responseSchema: sectionSchema,
+  };
+  const prompt = `${ASSIGNMENT_SECTION_PROMPT}\n\nBLUEPRINT: ${JSON.stringify(blueprint)}\n\nTARGET SECTION: ${JSON.stringify(section)}\n\nSOURCE MATERIAL: ${pdfData}`;
+  return await callModelResiliently(config, prompt);
 }

@@ -21,12 +21,104 @@ import {
   ChevronRight,
   Sparkles,
   Search,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 
 const MarkdownRenderer = ({ content }: { content: any }) => {
   if (!content) return null;
   
+  if (content.type === 'assignment' && content.assignment) {
+    const { assignment } = content;
+    return (
+      <div className="space-y-12 pb-20">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+            {assignment.title}
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            {assignment.blueprint?.description}
+          </p>
+        </div>
+
+        <div className="space-y-10">
+          {assignment.sections?.map((section: any, idx: number) => (
+            <div key={section.section_id || idx} className="space-y-4 pt-6 border-t border-border/60">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-1 rounded">
+                  Section {idx + 1}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">
+                {assignment.blueprint?.sections?.find((s: any) => s.id === section.section_id)?.title || `Chapter ${idx + 1}`}
+              </h2>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-loose whitespace-pre-wrap">
+                {section.content}
+              </div>
+              {section.citations?.length > 0 && (
+                <div className="mt-4 p-4 bg-muted/20 rounded-lg border border-border/40">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Sources & Citations</h4>
+                  <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                    {section.citations.map((c: any, i: number) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if ((typeof content === 'object' && content.questions) || content.type === 'homework') {
+    return (
+      <div className="space-y-8">
+        {content.questions.map((q: any) => (
+          <div key={q.qid} className="space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                {q.qid}
+              </span>
+              <h3 className="text-base font-semibold pt-1 leading-snug text-foreground">
+                {q.question_text}
+              </h3>
+            </div>
+            
+            <div className="ml-11 space-y-6">
+              {q.parts?.map((p: any, idx: number) => (
+                <div key={idx} className="relative pl-6 border-l-2 border-primary/20 space-y-3">
+                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary border-4 border-background" />
+                  
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary/70">
+                      Part {p.label}
+                    </span>
+                    <div className="text-sm font-medium p-3 bg-primary/5 rounded-lg border border-primary/10">
+                      <span className="text-primary font-bold mr-2">Answer:</span> {p.answer}
+                    </div>
+                  </div>
+
+                  {p.workings && (
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+                        <ChevronRight className="h-3 w-3" /> Step-by-Step Explanation
+                      </span>
+                      <div className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-lg italic border border-border/40">
+                        {p.workings}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (typeof content === 'object') {
     return (
       <div className="space-y-6">
@@ -54,6 +146,7 @@ export function UploadDetails() {
   const [upload, setUpload] = useState<Upload | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -84,18 +177,36 @@ export function UploadDetails() {
       
       const interval = setInterval(async () => {
         const res = await api.get<{ upload: Upload }>(`/upload/${uploadId}`);
-        const status = res.data.upload.analyses?.[0]?.status; 
+        const currentAnalysis = res.data.upload.analyses?.[0];
+        const status = currentAnalysis?.status; 
         
         if (status === 'completed' || status === 'failed') {
           clearInterval(interval);
           setUpload(res.data.upload);
           setAnalyzing(false);
+        } else if (currentAnalysis?.output) {
+          setUpload(res.data.upload);
         }
       }, 2000);
 
     } catch (err) {
       setError(handleApiError(err));
       setAnalyzing(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!analysis?.id) return;
+    setDownloading(true);
+    setError('');
+
+    try {
+      const response = await api.get<{ url: string }>(`/upload/${uploadId}/analyses/${analysis.id}/download`);
+      window.open(response.data.url, '_blank');
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -148,6 +259,21 @@ export function UploadDetails() {
         </div>
 
         <div className="flex items-center gap-2">
+          {analysis?.status === 'completed' && (
+            <Button 
+              variant="outline" 
+              onClick={handleDownload} 
+              disabled={downloading}
+              className="gap-2"
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Export PDF
+            </Button>
+          )}
           {(!analysis || analysis.status === 'failed') && (
             <Button 
               onClick={handleAnalyze} 

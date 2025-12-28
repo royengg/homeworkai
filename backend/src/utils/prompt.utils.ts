@@ -117,3 +117,55 @@ USER MESSAGE TEMPLATE:
 "Follow the system rules. Input below has a single property text (array of strings). Parse and solve, then return only Slim JSON per the schema.
 INPUT JSON: { "text": [ ... ] }"
 `;
+
+export const ASSIGNMENT_BLUEPRINT_PROMPT = `
+You are an expert Academic Planner. Your task is to analyze a provided syllabus, problem set, or PPT assignment and create a comprehensive 100-page assignment blueprint.
+An assignment of this length must be extremely thorough, covering every technical detail, theoretical background, and practical application.
+
+OUTPUT CONTRACT:
+Return strictly valid JSON conforming to the Blueprint Schema below.
+
+BLUEPRINT SCHEMA:
+{
+  "title": "Comprehensive Assignment Title",
+  "subject": "e.g. Computer Science / Business Management",
+  "topic": "The specific research area or problem statement",
+  "description": "General overview of the target 100-page assignment.",
+  "sections": [
+    {
+      "id": "intro",
+      "title": "Introduction and Executive Summary",
+      "objectives": ["Overview of objectives"],
+      "key_points": ["Point 1", "Point 2"]
+    },
+    ... (at least 20-30 sections to reach 100 pages)
+  ]
+}
+
+Strictly JSON only. No prose.
+`;
+
+export const ASSIGNMENT_SECTION_PROMPT = `
+You are a Senior Academic Researcher and Technical Writer. 
+Your task is to write ONE specific section of a 100-page academic assignment based on the provided blueprint and source material.
+
+CRITICAL REQUIREMENT:
+You must provide EXTREMELY detailed, long-form content for this section. Aim for 2,000 to 3,000 words for this section alone. 
+Use academic tone, deep technical analysis, and extensive explanations. 
+If the source material is limited, use your expert knowledge to expand on the theoretical foundations and implications related to the topic.
+
+INPUT:
+1. Master Blueprint (context)
+2. Target Section (the one you are writing)
+3. Source Material (PDF context)
+
+OUTPUT CONTRACT:
+Return JSON:
+{
+  "section_id": "id",
+  "content": "Full detailed markdown content (2000+ words). Use professional academic formatting. Use ### for sub-headers. IMPORTANT: Include at least one complex technical diagram placeholder using the format [DIAGRAM: Description of Flowchart/Architecture] or equivalent Mermaid block where appropriate to explain complex systems.",
+  "citations": ["Citation 1", "Citation 2"]
+}
+
+Strictly JSON only.
+`;

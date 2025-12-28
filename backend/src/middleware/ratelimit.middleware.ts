@@ -4,7 +4,6 @@ import { redis } from "../config/redis.config";
 import { config } from "../config/app.config";
 import { logger } from "../config/logger.config";
 
-
 const createRedisStore = (prefix: string) => {
   if (!redis) return undefined;
   const client = redis; 
@@ -41,7 +40,6 @@ export const apiLimiter = rateLimit({
   },
 });
 
-
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 5,
@@ -63,7 +61,6 @@ export const authLimiter = rateLimit({
   },
 });
 
-
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, 
   max: 100, 
@@ -74,7 +71,6 @@ export const uploadLimiter = rateLimit({
   legacyHeaders: false,
   ...(redis && { store: createRedisStore("rl:upload:v2:") as any }), 
 });
-
 
 export const analyzeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, 
@@ -95,4 +91,3 @@ export const analyzeLimiter = rateLimit({
     });
   },
 });
-

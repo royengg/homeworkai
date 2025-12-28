@@ -1,4 +1,4 @@
-import { PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3, storageBucket } from "../config/storage.config";
 
@@ -33,4 +33,19 @@ export async function headObject(params: { key: string; bucket?: string }) {
     etag: (res.ETag || "").replaceAll('"', ""),
     lastModified: res.LastModified?.toISOString(),
   };
+}
+
+export async function presignGet(params: {
+  key: string;
+  bucket?: string;
+  expiresIn?: number;
+}) {
+  const bucket = params.bucket ?? storageBucket;
+  const expiresIn = params.expiresIn ?? 3600;
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: params.key,
+  });
+  const url = await getSignedUrl(s3, command, { expiresIn });
+  return { bucket, key: params.key, url };
 }
