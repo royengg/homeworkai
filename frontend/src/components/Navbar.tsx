@@ -1,32 +1,28 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { LogOut, FileText } from 'lucide-react';
-import './Navbar.css';
+import { useNavigate } from 'react-router-dom';
+import { ShimmerButton } from './ShimmerButton';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <Link to="/dashboard" className="navbar-brand">
-          <FileText size={24} />
-          <span>HomeworkAI</span>
-        </Link>
-
-        <div className="navbar-menu">
-          <span className="navbar-user">{user?.name}</span>
-          <button onClick={handleLogout} className="navbar-logout">
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
-        </div>
+    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] md:w-full md:max-w-2xl mx-auto border border-gray-200 bg-white/50 dark:bg-black/40 dark:backdrop-blur-md dark:border-white/10 backdrop-blur-md rounded-full px-4 py-3 md:px-8 md:py-4 flex justify-between items-center shadow-sm transition-all duration-300">
+      <div className="flex items-center gap-2 text-brand-text-primary dark:text-white cursor-pointer">
+        <span className="material-symbols-outlined text-2xl font-bold bg-accent-gradient text-transparent bg-clip-text">
+          edit
+        </span>
+        <h1 className="text-xl font-bold tracking-tight">HomeworkAI</h1>
+      </div>
+      
+      {/* CTA */}
+      <div className="flex items-center gap-4">
+        <ThemeToggle />
+        <ShimmerButton 
+            onClick={() => navigate('/login')}
+            className="!px-6 !py-2.5 !text-sm !h-auto hover:border-orange-500 hover:shadow-[0_0_20px_-5px_rgba(249,115,22,0.5)]"
+        >
+          Get Started
+        </ShimmerButton>
       </div>
     </nav>
   );
