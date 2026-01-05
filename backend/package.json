@@ -29,16 +29,17 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
+    "http-proxy-middleware": "^3.0.5",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.2",
     "rate-limit-redis": "^4.3.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.3",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
-    "zod": "^4.1.12",
-    "tsx": "^4.20.6",
-    "typescript": "^5.3.3"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

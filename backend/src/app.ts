@@ -7,7 +7,10 @@ import uploadRoutes from "./routes/upload.route";
 import authRoutes from "./routes/auth.route";
 import analyzeRoutes from "./routes/analyze.route";
 import healthRoutes from "./routes/health.route";
+import s3Routes from "./routes/s3.route";
 import { authMiddleware } from "./middleware/auth.middleware";
+
+
 import { corsOptions } from "./config/cors.config";
 import { apiLimiter, authLimiter, uploadLimiter, analyzeLimiter } from "./middleware/ratelimit.middleware";
 import { loggingMiddleware } from "./middleware/logging.middleware";
@@ -48,6 +51,7 @@ apiRoutes.use(apiLimiter);
 
 
 apiRoutes.use("/auth", authLimiter, authRoutes);
+apiRoutes.use("/s3", s3Routes); // NEW: S3 Proxy Route
 apiRoutes.use("/users", userRoutes);
 
 

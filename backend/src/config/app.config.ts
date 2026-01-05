@@ -23,4 +23,8 @@ export const config = {
   
   logLevel: process.env.LOG_LEVEL || "info",
   logFilePath: process.env.LOG_FILE_PATH || "./logs",
+
+  // Public URL of the backend (for S3 proxy generation)
+  // In production, effective URL is https://<railway-app-domain>
+  backendPublicUrl: process.env.BACKEND_PUBLIC_URL || "http://localhost:3000",
 } as const;

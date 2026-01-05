@@ -1,6 +1,7 @@
 import { PutObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3, storageBucket } from "../config/storage.config";
+import { config } from "../config/app.config";
 
 export async function presignPut(params: {
   key: string;
@@ -15,7 +16,19 @@ export async function presignPut(params: {
     Key: params.key,
     ContentType: params.contentType,
   });
-  const url = await getSignedUrl(s3, command, { expiresIn });
+  let url = await getSignedUrl(s3, command, { expiresIn });
+
+  // REWRITE URL FOR PROXY
+  // Internal: http://127.0.0.1:9000/bucket/key?...
+  // Public:   https://backend.app/api/v1/s3/bucket/key?...
+  // We replace the endpoint origin with our proxy path
+  const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
+  const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
+  
+  if (url.includes(endpoint.origin)) {
+     url = url.replace(endpoint.origin, publicProxyBase);
+  }
+
   const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
   return { bucket, key: params.key, url, expiresAt };
 }
@@ -46,6 +59,15 @@ export async function presignGet(params: {
     Bucket: bucket,
     Key: params.key,
   });
-  const url = await getSignedUrl(s3, command, { expiresIn });
+  let url = await getSignedUrl(s3, command, { expiresIn });
+
+  // REWRITE URL FOR PROXY
+  const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
+  const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
+  
+  if (url.includes(endpoint.origin)) {
+     url = url.replace(endpoint.origin, publicProxyBase);
+  }
+
   return { bucket, key: params.key, url };
 }
