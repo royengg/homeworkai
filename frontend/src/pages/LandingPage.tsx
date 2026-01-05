@@ -1,4 +1,5 @@
-
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Hero } from '../components/Hero';
 import { FileUpload } from '../components/FileUpload';
 import { StepCard } from '../components/StepCard';
@@ -6,6 +7,12 @@ import { Navbar } from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export function LandingPage() {
+  const { user } = useAuth();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="bg-brand-background-light dark:bg-[#0A0A0A] min-h-screen flex flex-col font-space selection:bg-brand-primary/20 relative overflow-x-hidden w-full max-w-[100vw]">
       {/* Global Noise Overlay */}

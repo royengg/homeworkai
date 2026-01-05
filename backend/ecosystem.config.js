@@ -38,5 +38,15 @@ module.exports = {
         NODE_ENV: process.env.NODE_ENV || 'production',
       },
     },
+    {
+      name: 'init-minio',
+      script: './init-minio.sh',
+      autorestart: false,
+      env: {
+        MINIO_ROOT_USER: process.env.MINIO_ROOT_USER || 'minioadmin',
+        MINIO_ROOT_PASSWORD: process.env.MINIO_ROOT_PASSWORD || 'minioadmin123',
+        STORAGE_BUCKET: process.env.STORAGE_BUCKET || 'homeworkai-uploads',
+      }
+    }
   ],
 };

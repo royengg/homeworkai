@@ -18,10 +18,6 @@ export async function presignPut(params: {
   });
   let url = await getSignedUrl(s3, command, { expiresIn });
 
-  // REWRITE URL FOR PROXY
-  // Internal: http://127.0.0.1:9000/bucket/key?...
-  // Public:   https://backend.app/api/v1/s3/bucket/key?...
-  // We replace the endpoint origin with our proxy path
   const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
   const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
   
@@ -61,7 +57,6 @@ export async function presignGet(params: {
   });
   let url = await getSignedUrl(s3, command, { expiresIn });
 
-  // REWRITE URL FOR PROXY
   const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
   const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
   

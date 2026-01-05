@@ -45,7 +45,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const navItems = [
-    { to: '/', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
+    { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
     { to: '/uploads', icon: <FileText className="h-4 w-4" />, label: 'All Uploads' },
   ];
 
