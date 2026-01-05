@@ -23,4 +23,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use shell to replace PORT and start nginx
+CMD sh -c "sed -i 's/listen 80;/listen ${PORT:-80};/g' /etc/nginx/conf.d/default.conf && sed -i 's/listen \[::\]:80;/listen [::]:${PORT:-80};/g' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
