@@ -37,6 +37,11 @@ export interface Upload {
   analyses: AnalysisResult[];
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 export interface ParseResult {
   id: string;
   uploadId: string;

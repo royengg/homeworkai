@@ -1,7 +1,6 @@
 import { Response } from "express";
-import { presignSchema, confirmSchema } from "../schema/upload.schema";
+import { presignSchema, confirmSchema, listUploadSchema } from "../schema/upload.schema";
 import { presignPut, headObject } from "../services/storage.service";
-import crypto from "crypto";
 import { prisma } from "../db/prisma.db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -18,7 +17,6 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   const parsed = presignSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    console.log("Validation error:", parsed.error.issues);
     return res.status(400).json({ 
       error: "Invalid request body",
       details: parsed.error.issues 
@@ -135,17 +133,36 @@ export async function listUpload(req: AuthenticatedRequest, res: Response) {
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
+
+  const parsed = listUploadSchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid query parameters" });
+  }
+
+  const { cursor, limit = 10 } = parsed.data;
+
   try {
     const listUploads = await prisma.upload.findMany({
       where: { userId: user.userId },
+      take: limit + 1, // Fetch one extra to see if there's a next page
+      ...(cursor ? { cursor: { uploadId: cursor } } : {}),
+      orderBy: [
+        { createdAt: 'desc' },
+        { uploadId: 'desc' } // Stable sort
+      ],
       include: { analyses: true },
     });
 
-    if (!listUploads) {
-      return res.status(500).json({ error: "Uploads doesn't exist" });
+    let nextCursor: string | null = null;
+    if (listUploads.length > limit) {
+      const nextItem = listUploads.pop();
+      nextCursor = nextItem?.uploadId || null;
     }
 
-    return res.status(200).json({ listUploads });
+    return res.status(200).json({ 
+      items: listUploads,
+      nextCursor
+    });
   } catch (error) {
     return res.status(500).json({ error: "Failed to list uploads" });
   }

@@ -33,7 +33,9 @@ import {
 export function Dashboard() {
   const navigate = useNavigate();
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -42,14 +44,28 @@ export function Dashboard() {
     fetchUploads();
   }, []);
 
-  const fetchUploads = async () => {
+  const fetchUploads = async (cursor?: string | null) => {
     try {
-      const response = await api.get<{ listUploads: Upload[] }>('/upload/list');
-      setUploads(response.data.listUploads);
+      if (cursor) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      const query = cursor ? `?cursor=${cursor}&limit=10` : `?limit=10`;
+      const response = await api.get<{ items: Upload[], nextCursor: string | null }>(`/upload/list${query}`);
+      
+      if (cursor) {
+        setUploads(prev => [...prev, ...response.data.items]);
+      } else {
+        setUploads(response.data.items);
+      }
+      setNextCursor(response.data.nextCursor);
     } catch (err) {
       setError(handleApiError(err));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -58,8 +74,11 @@ export function Dashboard() {
       setUploads(uploads.map(u => 
         u.uploadId === uploadId ? { ...u, status: 'processing' } : u
       ));
+      setUploads(uploads.map(u => 
+        u.uploadId === uploadId ? { ...u, status: 'processing' } : u
+      ));
       await api.post(`/parse/${uploadId}`);
-      await fetchUploads();
+      await fetchUploads(); // Refresh list to get updates
     } catch (err) {
       setError(handleApiError(err));
       await fetchUploads();
@@ -114,6 +133,12 @@ export function Dashboard() {
         fetchUploads();
       }).catch(console.error);
 
+      api.post(`/parse/${uploadId}`).then(() => {
+        // Optimistic update or silent refresh could go here
+        fetchUploads(); 
+      }).catch(console.error);
+
+      // Refresh list to show new upload
       await fetchUploads();
     } catch (err) {
       setError(handleApiError(err));
@@ -283,6 +308,26 @@ export function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+
+            
+            {nextCursor && (
+              <div className="flex justify-center mt-6">
+                <Button 
+                  variant="outline" 
+                  onClick={() => fetchUploads(nextCursor)}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading more...
+                    </>
+                  ) : (
+                    'Load More'
+                  )}
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -36,8 +36,14 @@ export const confirmSchema = z.object({
   key: z.string().min(1, "Key is required"),
 });
 
+export const listUploadSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().min(1).max(50).default(10).optional(),
+});
+
 export type PresignUploadInput = z.infer<typeof presignSchema>;
 export type ConfirmUploadInput = z.infer<typeof confirmSchema>;
+export type ListUploadInput = z.infer<typeof listUploadSchema>;
 
 export function isPDFBuffer(buffer: Buffer): boolean {
   if (buffer.length < 4) return false;

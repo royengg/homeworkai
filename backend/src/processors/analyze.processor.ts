@@ -110,7 +110,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
         include: { upload: { include: { parseResult: true } } },
       });
 
-      for (const [index, section] of blueprint.sections.entries()) {
+      for (const [index, section] of blueprint.sections.slice(0, 8).entries()) {
         const alreadyDone = expandedSections.find(
           (s: any) => s.section_id === section.id
         );
