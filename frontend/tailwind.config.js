@@ -21,7 +21,8 @@ export default {
         space: ["Space Grotesk", "sans-serif"],
       },
       backgroundImage: {
-        "accent-gradient": "linear-gradient(to right, #EA580C, #F59E0B)",
+        "accent-gradient": "linear-gradient(to right, #f97316, #fbbf24)",
+        "glass-gradient": "linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01))",
       },
       colors: {
         border: "hsl(var(--border))",
@@ -57,16 +58,29 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        "brand-primary": "#f97316",
-        "brand-secondary": "#f59e0b",
-        "brand-background-light": "#FAFAF9",
-        "brand-text-primary": "#1A1A1A",
-        "brand-text-secondary": "#4B5563",
+        "brand": {
+          50: "#fff7ed",
+          100: "#ffedd5",
+          200: "#fed7aa",
+          300: "#fdba74",
+          400: "#fb923c",
+          500: "#f97316",
+          600: "#ea580c",
+          700: "#c2410c",
+          800: "#9a3412",
+          900: "#7c2d12",
+        },
+      },
+      boxShadow: {
+        'premium': '0 10px 30px -10px rgba(0, 0, 0, 0.5)',
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        'xl': '1rem',
+        '2xl': '1.5rem',
       },
       keyframes: {
         "accordion-down": {
@@ -100,6 +114,10 @@ export default {
             transform: "translate(-50%,-40%) scale(1)",
           },
         },
+        "pulse-glow": {
+          "0%, 100%": { opacity: 0.5, transform: "scale(1)" },
+          "50%": { opacity: 0.8, transform: "scale(1.05)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,9 +125,11 @@ export default {
         "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
         shimmer: "shimmer 2s linear infinite",
         spotlight: "spotlight 2s ease .75s 1 forwards",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
       },
     },
   },
+
   plugins: [
     function ({ matchUtilities, theme }) {
       matchUtilities(

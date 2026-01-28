@@ -137,40 +137,40 @@ export function FileUpload() {
       onClick={handleClick}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      className="group relative flex flex-col items-center justify-center h-64 md:h-96 p-8 md:p-16 border-2 border-dashed border-orange-500/50 rounded-lg bg-white dark:bg-neutral-900/50 dark:backdrop-blur-md dark:border-neutral-800 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md hover:border-amber-500 hover:bg-brand-primary/5 dark:hover:bg-neutral-800/50 w-full overflow-hidden"
+      className="group relative flex flex-col items-center justify-center h-64 md:h-96 p-8 md:p-16 border-2 border-dashed border-primary/30 rounded-[2.5rem] bg-card/50 backdrop-blur-xl border-white/5 cursor-pointer transition-all duration-500 shadow-premium hover:border-primary/60 hover:bg-primary/[0.02] w-full overflow-hidden"
     >
       <canvas 
         ref={canvasRef}
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none opacity-40"
       />
 
       {!isUploaded && (
         <BorderBeam 
-            size={250}
+            size={350}
             duration={12}
             delay={9}
-            colorFrom="#f97316" 
-            colorTo="#f59e0b"
+            colorFrom="hsl(var(--primary))" 
+            colorTo="hsl(var(--primary) / 0.5)"
         />
       )}
 
-      <div className="w-16 h-16 md:w-20 md:h-20 mb-4 md:mb-6 rounded-full bg-orange-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 relative z-10">
-        <span className="material-symbols-outlined text-4xl md:text-5xl bg-accent-gradient text-transparent bg-clip-text">
+      <div className="w-20 h-20 md:w-24 md:h-24 mb-6 md:mb-8 rounded-[2rem] bg-primary/10 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative z-10 shadow-inner">
+        <span className="material-symbols-outlined text-4xl md:text-5xl text-primary">
           {isUploaded ? 'check_circle' : 'cloud_upload'}
         </span>
       </div>
       
-      <h3 className="text-lg md:text-xl font-bold text-brand-text-primary dark:text-gray-100 mb-2 relative z-10 text-center">
+      <h3 className="text-xl md:text-2xl font-bold text-foreground mb-3 relative z-10 text-center tracking-tight">
         {isUploaded ? 'File Uploaded!' : 'Drag & drop assignment PDF here'}
       </h3>
       
-      <p className="text-brand-text-secondary text-xs md:text-sm mb-6 md:mb-8 relative z-10 text-center">
-        {isUploaded ? 'Redirecting...' : 'Supported formats: PDF, DOCX (Max 20MB)'}
+      <p className="text-muted-foreground/70 text-sm md:text-base mb-8 md:mb-10 relative z-10 text-center font-medium max-w-xs leading-relaxed">
+        {isUploaded ? 'Preparing your neural workspace...' : 'Securely process PDFs and images with advanced OCR & AI.'}
       </p>
       
       {!isUploaded && (
-        <button className="px-6 py-2.5 md:px-8 md:py-3 rounded bg-brand-text-primary text-white font-semibold text-xs md:text-sm hover:shadow-[0_4px_14px_0_rgba(249,115,22,0.39)] hover:scale-[1.02] hover:text-orange-400 transition-all duration-300 relative z-10">
-          Browse Files
+        <button className="px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-black text-sm hover:shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:scale-[1.05] transition-all duration-300 relative z-10 uppercase tracking-widest">
+          Choose File
         </button>
       )}
     </div>

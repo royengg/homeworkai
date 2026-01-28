@@ -12,7 +12,7 @@ export function Hero() {
         fill="orange"
       />
       <div className="text-center relative z-10 w-full max-w-3xl animate-fade-in px-4">
-        <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-brand-text-primary dark:text-[#E5E5E5] mb-6">
+        <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-foreground mb-6">
           Turn messy assignments into{" "}
           <span className="relative whitespace-nowrap">
             <span className="text-gradient relative z-10">intelligent solutions.</span>

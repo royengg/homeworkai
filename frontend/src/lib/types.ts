@@ -67,7 +67,33 @@ export interface AnalysisResult {
 
 export interface AnalysisOutput {
   document_id: string;
-  questions: Question[];
+  type: 'homework' | 'assignment';
+  questions?: Question[];
+  assignment?: {
+    title: string;
+    blueprint: AssignmentBlueprint;
+    full_content?: string;
+    sections?: AssignmentSection[];
+  };
+}
+
+export interface AssignmentBlueprint {
+  title: string;
+  description: string;
+  sections: {
+    id: string;
+    title: string;
+    objectives: string[];
+    key_points: string[];
+  }[];
+  subject?: string;
+  topic?: string;
+}
+
+export interface AssignmentSection {
+  section_id: string;
+  content: string;
+  citations?: string[];
 }
 
 export interface Question {
