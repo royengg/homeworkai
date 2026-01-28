@@ -9,7 +9,9 @@ import {
   X,
   User,
   Settings,
-  HelpCircle
+  HelpCircle,
+  ChevronRight,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -31,22 +33,24 @@ const NavItem = ({ to, icon, label, active, onClick }: NavItemProps) => (
     to={to}
     onClick={onClick}
     className={cn(
-      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative",
       active 
-        ? "bg-primary/10 text-primary shadow-sm" 
-        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        ? "text-foreground" 
+        : "text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
     )}
   >
     {active && (
       <motion.div 
-        layoutId="activeNav"
-        className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+        layoutId="activeNavIndicator"
+        className="absolute left-[-12px] w-1 h-5 bg-primary rounded-r-full"
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       />
     )}
-    <span className={cn("transition-transform group-hover:scale-110", active && "scale-110")}>
+    <span className={cn("transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")}>
       {icon}
     </span>
-    {label}
+    <span className="flex-1">{label}</span>
+    {active && <ChevronRight className="h-3 w-3 opacity-50" />}
   </Link>
 );
 
@@ -57,8 +61,8 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const navItems = [
-    { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Overview' },
-    { to: '/uploads', icon: <FileText className="h-4 w-4" />, label: 'My Documents' },
+    { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
+    { to: '/uploads', icon: <FileText className="h-4 w-4" />, label: 'Archive' },
   ];
 
   const handleLogout = () => {
@@ -67,27 +71,28 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <div className="flex h-screen bg-background font-inter selection:bg-primary/20 selection:text-primary">
-      {/* Dynamic Background Elements */}
+    <div className="flex h-screen bg-background font-inter selection:bg-zinc-200 selection:text-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
+      {/* Background Ambience */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-brand-500/5 blur-[120px]" />
-        <div className="absolute inset-0 bg-noise opacity-[0.03]" />
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-zinc-200/20 dark:bg-zinc-900/40 blur-[120px] mix-blend-multiply" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-zinc-200/20 dark:bg-zinc-900/40 blur-[120px] mix-blend-multiply" />
       </div>
 
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex w-72 flex-col m-4 mr-0 rounded-2xl glass-card overflow-hidden">
-        <div className="p-8">
-          <Link to="/" className="flex items-center gap-3 font-bold text-2xl tracking-tight group">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform">
-              <BookOpen className="h-6 w-6" />
+      <aside className="hidden md:flex w-64 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black relative z-50">
+        <div className="h-16 flex items-center px-6 border-b border-zinc-200 dark:border-zinc-800">
+          <Link to="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight group">
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-zinc-100 dark:text-zinc-900 shadow-premium transition-transform group-hover:scale-95">
+              <BookOpen className="h-4 w-4" />
             </div>
-            <span className="text-gradient">HomeworkAI</span>
+            <span className="text-zinc-900 dark:text-zinc-100 font-bold">HomeworkAI</span>
           </Link>
         </div>
         
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <div className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest px-4 mb-2">Main Menu</div>
+        <nav className="flex-1 px-3 space-y-1 mt-6">
+          <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-3 mb-2 flex items-center justify-between">
+            Navigation
+          </div>
           {navItems.map((item) => (
             <NavItem 
               key={item.to}
@@ -98,87 +103,86 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
             />
           ))}
           
-          <Separator className="my-6 opacity-20 mx-4" />
+          <Separator className="my-6 opacity-50 mx-3" />
           
-          <div className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest px-4 mb-2">Preferences</div>
-          <div className="px-4 py-2 flex items-center justify-between glass-card rounded-xl border-none mx-2">
-            <span className="text-xs font-medium text-muted-foreground">Dark Mode</span>
-            <ThemeToggle />
+          <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-3 mb-2">Systems</div>
+          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-all group">
+             <Settings className="h-4 w-4 group-hover:rotate-45 transition-transform" />
+             Settings
+          </button>
+          <div className="px-3 pt-4">
+             <div className="p-3 glass-card rounded-xl flex items-center justify-between border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+               <span className="text-xs font-medium text-muted-foreground">Dark Mode</span>
+               <ThemeToggle />
+             </div>
           </div>
         </nav>
 
-        <div className="p-4 mt-auto">
-          <div className="glass-card rounded-xl p-4 bg-gradient-to-br from-primary/5 to-transparent border-white/5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary ring-2 ring-primary/10 ring-offset-2 ring-offset-background">
-                <User className="h-5 w-5" />
+        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center gap-3 px-2 py-2 group cursor-pointer">
+              <div className="h-8 w-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 ring-1 ring-zinc-200 dark:ring-zinc-700">
+                <User className="h-4 w-4" />
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-semibold truncate leading-none mb-1">{user?.name || 'User'}</p>
-                <p className="text-[10px] text-muted-foreground truncate opacity-70">{user?.email}</p>
+                <p className="text-xs font-semibold truncate text-foreground">{user?.name || 'User'}</p>
+                <p className="text-[10px] text-zinc-400 truncate tracking-tight">{user?.email}</p>
               </div>
+              <button 
+                onClick={handleLogout}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              >
+                <LogOut className="h-3 w-3 text-zinc-400" />
+              </button>
             </div>
-            <Button 
-              variant="secondary" 
-              size="sm"
-              className="w-full justify-start gap-3 rounded-lg bg-background/50 hover:bg-destructive/10 hover:text-destructive transition-all border-none h-9"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="text-xs">Sign Out</span>
-            </Button>
-          </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
-        <header className="md:hidden h-16 glass-card border-x-0 border-t-0 flex items-center justify-between px-4 z-40">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+        <header className="md:hidden h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-black/80 backdrop-blur-md flex items-center justify-between px-4 z-50">
+          <button 
             onClick={() => setIsMobileMenuOpen(true)}
-            className="rounded-xl"
+            className="p-2 -ml-2 text-muted-foreground"
           >
-            <Menu className="h-6 w-6" />
-          </Button>
-          <Link to="/" className="font-bold text-lg text-gradient">HomeworkAI</Link>
-          <ThemeToggle />
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link to="/" className="font-bold text-sm tracking-tight">HomeworkAI</Link>
+          <div className="h-8 w-8 rounded-full bg-zinc-100 dark:bg-zinc-800" />
         </header>
 
         {/* Action Header - Desktop */}
-        <header className="hidden md:flex h-20 items-center justify-between px-10">
-          <div className="flex-1">
-            <h2 className="text-lg font-medium text-muted-foreground/80">
-              Welcome back, <span className="text-foreground font-bold">{user?.name?.split(' ')[0] || 'Scholar'}</span>
-            </h2>
+        <header className="hidden md:flex h-16 items-center justify-between px-8 border-b border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+             <span>Workspace</span>
+             <ChevronRight className="h-3 w-3 opacity-30" />
+             <span className="text-foreground font-semibold uppercase tracking-wider">{location.pathname.split('/').pop() || 'Personal'}</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/5 group">
-              <Settings className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/5 group">
-              <HelpCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </Button>
-            <Separator orientation="vertical" className="h-6 mx-2 opacity-20" />
-            <div className="h-10 w-10 rounded-xl glass-card overflow-hidden flex items-center justify-center group cursor-pointer hover:border-primary/30 transition-colors">
-              <User className="h-5 w-5 group-hover:text-primary transition-colors" />
-            </div>
+          <div className="flex items-center gap-3">
+             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-zinc-400 hover:text-foreground">
+                <Bell className="h-4 w-4" />
+             </Button>
+             <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-1" />
+             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-zinc-400 hover:text-foreground">
+                <HelpCircle className="h-4 w-4" />
+             </Button>
           </div>
         </header>
 
         {/* Scrolling Content */}
-        <main className="flex-1 overflow-y-auto px-4 md:px-10 pb-10">
+        <main className="flex-1 overflow-y-auto px-6 md:px-10 pb-20 pt-8 scrollbar-hide">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="max-w-6xl mx-auto pt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-5xl mx-auto"
           >
             {children}
           </motion.div>
         </main>
+
+        {/* Bottom Shade */}
+        <div className="fixed bottom-0 right-0 left-64 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </div>
 
       {/* Mobile Drawer */}
@@ -189,21 +193,21 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm md:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <motion.aside 
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 z-50 w-80 bg-neutral-900 border-r border-white/5 md:hidden p-6 flex flex-col shadow-2xl"
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 z-[70] w-72 bg-white dark:bg-zinc-950 p-6 flex flex-col"
             >
-              <div className="flex items-center justify-between mb-10">
-                <span className="font-bold text-xl text-white">HomeworkAI</span>
-                <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} className="rounded-xl text-white">
-                  <X className="h-6 w-6" />
-                </Button>
+              <div className="flex items-center justify-between mb-8">
+                <span className="font-bold text-lg">HomeworkAI</span>
+                <button onClick={() => setIsMobileMenuOpen(false)}>
+                  <X className="h-5 w-5" />
+                </button>
               </div>
               
               <nav className="flex-1 space-y-2">
@@ -225,4 +229,5 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 };
+
 

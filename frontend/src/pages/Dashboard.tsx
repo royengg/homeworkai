@@ -7,12 +7,10 @@ import { api, handleApiError } from '@/lib/api';
 import type { Upload } from '@/lib/types';
 import { 
   Trash2, 
-  ExternalLink,
   Loader2,
   CheckCircle2,
   AlertCircle,
   FileUp,
-  Calendar,
   Layers,
   FileText,
   Clock
@@ -74,18 +72,7 @@ export function Dashboard() {
     }
   };
 
-  const handleParse = async (uploadId: string) => {
-    try {
-      setUploads(uploads.map(u => 
-        u.uploadId === uploadId ? { ...u, status: 'processing' } : u
-      ));
-      await api.post(`/parse/${uploadId}`);
-      await fetchUploads(); 
-    } catch (err) {
-      setError(handleApiError(err));
-      await fetchUploads();
-    }
-  };
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,9 +83,9 @@ export function Dashboard() {
       return;
     }
 
-    const maxSize = 10 * 1024 * 1024; 
+    const maxSize = 20 * 1024 * 1024; 
     if (file.size > maxSize) {
-      setError('File size must not exceed 10MB');
+      setError('File size must not exceed 20MB');
       return;
     }
 
@@ -126,22 +113,8 @@ export function Dashboard() {
         bucket,
         key,
       });
-
-      setUploads(prev => [{
-        uploadId: 'temp-' + Date.now(),
-        userId: 0,
-        bucket,
-        key,
-        status: 'uploading',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        analyses: []
-      }, ...prev]);
       
-      api.post(`/parse/${uploadId}`).then(() => {
-        fetchUploads(); 
-      }).catch(console.error);
-
+      await api.post(`/parse/${uploadId}`).catch(console.error);
       await fetchUploads();
     } catch (err) {
       setError(handleApiError(err));
@@ -153,7 +126,7 @@ export function Dashboard() {
 
   const handleDelete = async (e: React.MouseEvent, uploadId: string) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this document?')) return;
+    if (!confirm('Permanently delete this research material?')) return;
 
     try {
       await api.delete(`/upload/${uploadId}/delete`);
@@ -167,29 +140,35 @@ export function Dashboard() {
     switch (status) {
       case 'processing':
       case 'uploading':
-        return <Badge variant="warning" className="bg-amber-500/10 text-amber-500 border-amber-500/20 shrink-0"><Clock className="h-3 w-3 mr-1" /> {status}</Badge>;
+        return <Badge variant="outline" className="text-[10px] bg-zinc-100/50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 font-bold uppercase tracking-widest px-2 py-0 border leading-none"><Clock className="h-2.5 w-2.5 mr-1 animate-pulse" /> {status}</Badge>;
       case 'processed':
       case 'completed':
-        return <Badge variant="success" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shrink-0"><CheckCircle2 className="h-3 w-3 mr-1" /> Ready</Badge>;
+        return <Badge variant="outline" className="text-[10px] bg-zinc-900 dark:bg-white text-white dark:text-black font-bold uppercase tracking-widest px-2 py-0 border leading-none">Ready</Badge>;
       case 'failed':
-        return <Badge variant="destructive" className="bg-rose-500/10 text-rose-500 border-rose-500/20 shrink-0"><AlertCircle className="h-3 w-3 mr-1" /> Failed</Badge>;
+        return <Badge variant="outline" className="text-[10px] bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/50 font-bold uppercase tracking-widest px-2 py-0 border leading-none">Error</Badge>;
       default:
-        return <Badge variant="secondary" className="shrink-0">{status}</Badge>;
+        return <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest px-2 py-0 border leading-none">{status}</Badge>;
     }
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Header Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight text-gradient inline-block">Workspace</h1>
-          <p className="text-muted-foreground text-lg max-w-xl leading-relaxed">
-            Upload your homework PDFs and let our AI provide deep academic insights and solutions in seconds.
+    <div className="space-y-12">
+      {/* Dynamic Workspace Header */}
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+             <div className="h-2 w-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Personal Hub</span>
+          </div>
+          <h1 className="text-5xl font-black tracking-tight text-zinc-900 dark:text-zinc-50 drop-shadow-sm">
+            Documents
+          </h1>
+          <p className="text-muted-foreground text-sm font-medium max-w-sm leading-relaxed">
+            Manage and research your academic source material with deep AI extraction.
           </p>
         </div>
         
-        <div className="flex flex-col justify-center">
+        <div className="flex-shrink-0">
             <input
                 ref={fileInputRef}
                 type="file"
@@ -201,193 +180,141 @@ export function Dashboard() {
             <Button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                size="lg"
-                className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 group relative overflow-hidden"
+                className="h-14 px-8 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black hover:scale-[0.98] transition-transform shadow-2xl shadow-zinc-500/10 font-bold text-sm tracking-tight flex items-center gap-3"
             >
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
-                <div className="flex items-center justify-center gap-3 relative z-10">
-                    {uploading ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                        <FileUp className="h-5 w-5 transition-transform group-hover:-translate-y-1" />
-                    )}
-                    <span className="font-semibold text-lg">{uploading ? "Uploading..." : "New Document"}</span>
-                </div>
+                {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <FileUp className="h-4 w-4" />
+                )}
+                <span>{uploading ? "Ingesting..." : "Import Material"}</span>
             </Button>
         </div>
-      </div>
+      </section>
 
       {error && (
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-3 p-4 text-rose-500 bg-rose-500/10 rounded-2xl border border-rose-500/20"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-4 text-xs font-bold bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl"
         >
-          <AlertCircle className="h-5 w-5" />
-          <p className="font-medium">{error}</p>
-          <Button variant="ghost" size="sm" className="ml-auto text-rose-500 hover:bg-rose-500/10" onClick={() => setError('')}>Dismiss</Button>
+          <AlertCircle className="h-4 w-4 text-red-500" />
+          <p className="flex-1">{error}</p>
+          <button className="text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100" onClick={() => setError('')}>Dismiss</button>
         </motion.div>
       )}
 
-      {/* Main Content Area */}
+      {/* Grid Flow */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold flex items-center gap-2">
-            <Layers className="h-5 w-5 text-primary" />
-            Recent Documents
-            <span className="ml-2 px-2 py-0.5 rounded-full bg-muted text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                {uploads.length} total
-            </span>
-          </h3>
-          <div className="h-px flex-1 mx-6 bg-border opacity-50" />
+        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/50 pb-4">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-zinc-400" />
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+               Source Library
+            </h3>
+          </div>
+          <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded text-zinc-500">
+              {uploads.length} Items Total
+          </span>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-[220px] rounded-2xl bg-muted/20 animate-pulse relative overflow-hidden">
-                  <div className="absolute inset-x-0 top-0 h-2/3 bg-gradient-to-b from-muted/30 to-transparent" />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="h-48 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 animate-shimmer relative overflow-hidden border border-zinc-100 dark:border-zinc-800" />
             ))}
           </div>
         ) : uploads.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center rounded-3xl border-2 border-dashed border-muted/50 bg-muted/5"
-          >
-            <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6 ring-8 ring-primary/5">
-              <FileText className="h-10 w-10 text-primary" />
+          <div className="flex flex-col items-center justify-center py-32 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10">
+            <div className="h-16 w-16 rounded-2xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-6 text-zinc-300">
+              <FileText className="h-8 w-8" />
             </div>
-            <h3 className="text-2xl font-bold mb-2">No documents yet</h3>
-            <p className="text-muted-foreground max-w-sm px-10 leading-relaxed">
-              Your academic workspace is empty. Upload your first PDF to start your AI-powered learning journey.
+            <h3 className="text-lg font-bold">No research material</h3>
+            <p className="text-zinc-400 text-xs font-medium max-w-[200px] text-center mt-1 leading-relaxed">
+              Upload your first PDF to begin your academic synthesis.
             </p>
-            <Button 
-              variant="outline" 
-              className="mt-8 rounded-xl h-12 px-8 border-primary/20 hover:bg-primary/5 transition-all"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Upload PDF
-            </Button>
-          </motion.div>
+          </div>
         ) : (
-          <>
-            <motion.div 
-              variants={container}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              {uploads.map((upload) => (
-                <motion.div 
-                  key={upload.uploadId}
-                  variants={item}
-                  whileHover={{ y: -4 }}
-                  onClick={() => upload.status === 'processed' && navigate(`/upload/${upload.uploadId}`)}
-                  className={cn(
-                    "group relative glass-card rounded-3xl p-6 transition-all duration-300 cursor-pointer overflow-hidden border-white/5 hover:border-primary/20",
-                    upload.status === 'processed' ? "hover:shadow-2xl hover:shadow-primary/5" : "opacity-80 grayscale-[0.5]"
-                  )}
-                >
-                  {/* Card Background Pattern */}
-                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-110 transition-all pointer-events-none">
-                     <FileText className="h-32 w-32 rotate-12" />
-                  </div>
-
-                  <div className="flex flex-col h-full justify-between relative z-10">
-                    <div className="space-y-4">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-inner">
-                                <FileText className="h-6 w-6" />
-                            </div>
-                            {getStatusBadge(upload.status)}
-                        </div>
-
-                        <div className="space-y-1">
-                            <h4 className="font-bold text-lg leading-tight truncate group-hover:text-primary transition-colors" title={upload.key.split('/').pop()}>
-                                {upload.key.split('/').pop()?.replace(/_\d+\.pdf$/, '.pdf')}
-                            </h4>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(upload.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                <span className="opacity-30">•</span>
-                                <span>{(upload.size ? (upload.size / 1024 / 1024).toFixed(1) : '0')} MB</span>
-                            </div>
-                        </div>
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {uploads.map((upload) => (
+              <motion.div 
+                key={upload.uploadId}
+                variants={item}
+                onClick={() => upload.status === 'processed' && navigate(`/upload/${upload.uploadId}`)}
+                className={cn(
+                  "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
+                  upload.status === 'processed' 
+                    ? "bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-100 cursor-pointer shadow-soft hover:shadow-2xl" 
+                    : "bg-zinc-50/50 dark:bg-zinc-950 border-zinc-100 dark:border-zinc-800/40 opacity-70"
+                )}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="h-10 w-10 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+                      <FileText className="h-5 w-5" />
                     </div>
-
-                    <div className="pt-6 flex items-center justify-between mt-auto">
-                        <div className="flex -space-x-2 overflow-hidden">
-                             {upload.analyses && upload.analyses.length > 0 ? (
-                                <div className="h-7 px-2 rounded-lg bg-emerald-500/10 text-emerald-500 text-[10px] font-bold flex items-center gap-1 border border-emerald-500/20">
-                                   <CheckCircle2 className="h-3 w-3" />
-                                   {upload.analyses.length} Analysis
-                                </div>
-                             ) : (
-                                <div className="h-7 px-2 rounded-lg bg-muted text-[10px] text-muted-foreground font-bold flex items-center border border-border">
-                                   No analysis
-                                </div>
-                             )}
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 rounded-lg hover:bg-rose-500/10 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                                onClick={(e) => handleDelete(e, upload.uploadId)}
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                            {upload.status === 'uploaded' && (
-                                <Button 
-                                    size="sm"
-                                    className="h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground border-none"
-                                    onClick={(e) => { e.stopPropagation(); handleParse(upload.uploadId); }}
-                                >
-                                    Process
-                                </Button>
-                            )}
-                            {upload.status === 'processed' && (
-                                <Button 
-                                    variant="ghost"
-                                    size="icon" 
-                                    className="h-8 w-8 rounded-lg bg-primary/5 text-primary opacity-0 group-hover:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground"
-                                >
-                                    <ExternalLink className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
+                    {getStatusBadge(upload.status)}
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm leading-tight text-zinc-900 dark:text-zinc-100 truncate pr-4">
+                      {upload.key.split('/').pop()?.replace(/_\d+\.pdf$/, '.pdf')}
+                    </h4>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
+                       {new Date(upload.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                       <span className="opacity-20">•</span>
+                       {(upload.size ? (upload.size / 1024 / 1024).toFixed(1) : '0')}MB
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </motion.div>
-            
-            {nextCursor && (
-              <div className="flex justify-center mt-12">
-                <Button 
-                  variant="outline" 
-                  onClick={() => fetchUploads(nextCursor)}
-                  disabled={loadingMore}
-                  className="rounded-2xl h-12 px-10 border-muted-foreground/20 bg-card/30 backdrop-blur-sm hover:bg-primary/5 hover:border-primary/50 transition-all"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      Loading more...
-                    </>
-                  ) : (
-                    'View More Documents'
-                  )}
-                </Button>
-              </div>
-            )}
-          </>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-50 dark:border-zinc-800">
+                   <div className="flex items-center gap-2">
+                       {upload.analyses && upload.analyses.length > 0 ? (
+                          <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1">
+                             <CheckCircle2 className="h-3 w-3" /> Synthesis Ready
+                          </div>
+                       ) : (
+                          <div className="text-[10px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-widest">
+                             Inert Source
+                          </div>
+                       )}
+                   </div>
+                   
+                   <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto"
+                      onClick={(e) => handleDelete(e, upload.uploadId)}
+                   >
+                      <Trash2 className="h-3.5 w-3.5" />
+                   </Button>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
         )}
       </div>
+      
+      {nextCursor && (
+        <div className="flex justify-center pt-8">
+            <Button 
+                variant="outline" 
+                onClick={() => fetchUploads(nextCursor)}
+                disabled={loadingMore}
+                className="rounded-xl h-12 px-10 border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            >
+                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extend Library"}
+            </Button>
+        </div>
+      )}
     </div>
   );
 }
+
 

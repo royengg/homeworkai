@@ -31,29 +31,27 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus:outline-none"
+      className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors focus:outline-none group border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 shadow-soft"
       aria-label="Toggle Theme"
     >
       <AnimatePresence mode="wait" initial={false}>
         {isDark ? (
           <motion.div
             key="moon"
-            initial={{ rotate: -90, scale: 0 }}
-            animate={{ rotate: 0, scale: 1 }}
-            exit={{ rotate: 90, scale: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            initial={{ opacity: 0, rotate: -30 }}
+            animate={{ opacity: 1, rotate: 0 }}
+            exit={{ opacity: 0, rotate: 30 }}
           >
-            <Moon className="w-5 h-5 text-white" />
+            <Moon className="w-4 h-4 text-zinc-400 group-hover:text-zinc-100 transition-colors" />
           </motion.div>
         ) : (
           <motion.div
             key="sun"
-            initial={{ rotate: -90, scale: 0 }}
-            animate={{ rotate: 0, scale: 1 }}
-            exit={{ rotate: 90, scale: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            initial={{ opacity: 0, rotate: -30 }}
+            animate={{ opacity: 1, rotate: 0 }}
+            exit={{ opacity: 0, rotate: 30 }}
           >
-            <Sun className="w-5 h-5 text-neutral-600" />
+            <Sun className="w-4 h-4 text-zinc-500 group-hover:text-zinc-900 transition-colors" />
           </motion.div>
         )}
       </AnimatePresence>
