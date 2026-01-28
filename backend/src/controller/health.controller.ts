@@ -21,7 +21,6 @@ export async function readinessCheck(req: Request, res: Response) {
 
   let allHealthy = true;
 
-  
   try {
     await prisma.$queryRaw`SELECT 1`;
     checks.database = true;
@@ -30,7 +29,6 @@ export async function readinessCheck(req: Request, res: Response) {
     logger.error("Database health check failed", { error });
   }
 
-  
   try {
     if (redis) {
       await redis.ping();
@@ -43,7 +41,6 @@ export async function readinessCheck(req: Request, res: Response) {
     logger.error("Redis health check failed", { error });
   }
 
-  
   try {
     const bucket = process.env.STORAGE_BUCKET;
     if (bucket) {

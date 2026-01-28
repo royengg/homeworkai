@@ -16,12 +16,10 @@ export function errorMiddleware(
 ) {
   const correlationId = (req as any).correlationId || "unknown";
 
-  
   let statusCode = err.statusCode || 500;
   let message = err.message || "Internal server error";
   let details: any = undefined;
 
-  
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     statusCode = 400;
     switch (err.code) {
@@ -41,7 +39,6 @@ export function errorMiddleware(
     }
   }
 
-  
   if (err instanceof ZodError) {
     statusCode = 400;
     message = "Validation error";
@@ -51,7 +48,6 @@ export function errorMiddleware(
     }));
   }
 
-  
   logger.error("Error occurred", {
     correlationId,
     error: sanitizeLogData({
@@ -64,16 +60,13 @@ export function errorMiddleware(
     }),
   });
 
-  
   res.status(statusCode).json({
     error: message,
     correlationId,
     ...(details && { details }),
-    
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 }
-
 
 export function setupErrorHandlers() {
   process.on("uncaughtException", (error: Error) => {

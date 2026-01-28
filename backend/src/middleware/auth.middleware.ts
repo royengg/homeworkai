@@ -1,7 +1,7 @@
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined in environment variables");
 }
@@ -24,7 +24,7 @@ export function authMiddleware(
   const token = authHeader.slice("Bearer ".length);
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET as Secret);
     if (
       typeof payload !== "object" ||
       !payload ||

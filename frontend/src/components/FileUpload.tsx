@@ -40,18 +40,16 @@ export function FileUpload() {
         this.vx = (Math.random() - 0.5) * 0.5;
         this.vy = (Math.random() - 0.5) * 0.5;
         this.size = Math.random() * 2 + 1;
-        this.color = `rgba(249, 115, 22, ${Math.random() * 0.3 + 0.1})`; // Orange/Amber
+        this.color = `rgba(249, 115, 22, ${Math.random() * 0.3 + 0.1})`; 
       }
 
       update() {
         this.x += this.vx;
         this.y += this.vy;
 
-        // Bounce off walls
         if (this.x < 0 || this.x > canvas!.width) this.vx *= -1;
         if (this.y < 0 || this.y > canvas!.height) this.vy *= -1;
 
-        // Mouse interaction (gentle repel)
         const dx = mouseRef.current.x - this.x;
         const dy = mouseRef.current.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -80,7 +78,7 @@ export function FileUpload() {
 
     const initParticles = () => {
       particles = [];
-      const particleCount = Math.floor((canvas.width * canvas.height) / 8000); // Responsive count
+      const particleCount = Math.floor((canvas.width * canvas.height) / 8000); 
       for (let i = 0; i < particleCount; i++) {
         particles.push(new Particle());
       }
@@ -101,7 +99,6 @@ export function FileUpload() {
 
     window.addEventListener('resize', resize);
     
-    // Mouse relative to container
     const handleMouseMove = (e: MouseEvent) => {
         const rect = container.getBoundingClientRect();
         mouseRef.current = {
@@ -123,7 +120,6 @@ export function FileUpload() {
     e.preventDefault();
     setIsUploaded(true);
     setTimeout(() => {
-        // navigate('/login'); 
     }, 1000);
   };
 
@@ -135,7 +131,6 @@ export function FileUpload() {
       if(!isUploaded) navigate('/login');
   };
 
-
   return (
     <div 
       ref={containerRef}
@@ -144,13 +139,11 @@ export function FileUpload() {
       onDragOver={handleDragOver}
       className="group relative flex flex-col items-center justify-center h-64 md:h-96 p-8 md:p-16 border-2 border-dashed border-orange-500/50 rounded-lg bg-white dark:bg-neutral-900/50 dark:backdrop-blur-md dark:border-neutral-800 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md hover:border-amber-500 hover:bg-brand-primary/5 dark:hover:bg-neutral-800/50 w-full overflow-hidden"
     >
-      {/* Particle Canvas */}
       <canvas 
         ref={canvasRef}
         className="absolute inset-0 z-0 pointer-events-none"
       />
 
-      {/* Border Beam - Only show if not uploaded */}
       {!isUploaded && (
         <BorderBeam 
             size={250}
@@ -161,7 +154,6 @@ export function FileUpload() {
         />
       )}
 
-      {/* Content */}
       <div className="w-16 h-16 md:w-20 md:h-20 mb-4 md:mb-6 rounded-full bg-orange-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 relative z-10">
         <span className="material-symbols-outlined text-4xl md:text-5xl bg-accent-gradient text-transparent bg-clip-text">
           {isUploaded ? 'check_circle' : 'cloud_upload'}

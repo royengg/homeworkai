@@ -94,7 +94,7 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
     });
 
     if (upload?.userId !== user.userId) {
-      return res.status(403).json({ error: "User mismatch" });
+      return res.status(404).json({ error: "User mismatch" });
     }
     const { bucket, key } = parsed.data;
     const meta = await headObject(bucket ? { key, bucket } : { key });
@@ -138,7 +138,7 @@ export async function listUpload(req: AuthenticatedRequest, res: Response) {
   try {
     const listUploads = await prisma.upload.findMany({
       where: { userId: user.userId },
-      include: { parseResult: true, analyses: true },
+      include: { analyses: true },
     });
 
     if (!listUploads) {

@@ -10,7 +10,6 @@ import healthRoutes from "./routes/health.route";
 import s3Routes from "./routes/s3.route";
 import { authMiddleware } from "./middleware/auth.middleware";
 
-
 import { corsOptions } from "./config/cors.config";
 import { apiLimiter, authLimiter, uploadLimiter, analyzeLimiter } from "./middleware/ratelimit.middleware";
 import { loggingMiddleware } from "./middleware/logging.middleware";
@@ -24,44 +23,32 @@ const PORT = config.port;
 
 export const app = express();
 
-
 setupErrorHandlers();
-
 
 app.set("trust proxy", 1);
 
-
 app.use(cors(corsOptions));
-
 
 app.use(express.json());
 
-
 app.use(loggingMiddleware);
 
-
 app.use("/health", healthRoutes);
-
 
 const apiRoutes = express.Router();
 app.use("/api/v1", apiRoutes);
 
-
 apiRoutes.use(apiLimiter);
 
-
 apiRoutes.use("/auth", authLimiter, authRoutes);
-apiRoutes.use("/s3", s3Routes); // NEW: S3 Proxy Route
+apiRoutes.use("/s3", s3Routes);
 apiRoutes.use("/users", userRoutes);
-
 
 apiRoutes.use("/parse", authMiddleware, parseRoutes);
 apiRoutes.use("/upload", authMiddleware, uploadRoutes);
 apiRoutes.use("/analyze", authMiddleware, analyzeLimiter, analyzeRoutes);
 
-
 app.use(errorMiddleware);
-
 
 let server: any;
 
@@ -74,7 +61,6 @@ function gracefulShutdown(signal: string) {
       process.exit(0);
     });
 
-    
     setTimeout(() => {
       logger.error("Forced shutdown after timeout");
       process.exit(1);
@@ -86,7 +72,6 @@ function gracefulShutdown(signal: string) {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
 
 server = app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`, {

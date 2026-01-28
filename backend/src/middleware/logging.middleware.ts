@@ -11,19 +11,16 @@ export function loggingMiddleware(
   res: Response,
   next: NextFunction
 ) {
-  
   if (req.path.startsWith("/health")) {
     return next();
   }
 
-  
   const correlationId = uuidv4();
   req.correlationId = correlationId;
   res.setHeader("X-Correlation-ID", correlationId);
 
   const startTime = Date.now();
 
-  
   logger.info("Incoming request", {
     correlationId,
     method: req.method,
@@ -33,7 +30,6 @@ export function loggingMiddleware(
     userId: (req as any).user?.userId,
   });
 
-  
   const originalSend = res.send;
   res.send = function (data: any) {
     const duration = Date.now() - startTime;

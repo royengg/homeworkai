@@ -14,7 +14,6 @@ export function Navbar() {
         <h1 className="text-xl font-bold tracking-tight">HomeworkAI</h1>
       </div>
       
-      {/* CTA */}
       <div className="flex items-center gap-4">
         <ThemeToggle />
         <ShimmerButton 

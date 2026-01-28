@@ -4,20 +4,16 @@ import { logger } from "../config/logger.config";
 
 export async function parsePDF(buffer: Buffer): Promise<ParsedResult> {
   try {
-
     let parser: any;
     try {
       parser = require("pdf-parse");
     } catch (e) {
-    
       parser = pdf;
     }
 
-  
     if (typeof parser !== 'function' && parser?.default) {
       parser = parser.default;
     }
-
 
     if (typeof parser !== 'function') {
       logger.error("pdf-parse library is not a function", { 

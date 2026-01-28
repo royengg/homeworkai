@@ -3,7 +3,6 @@ import { config } from "./app.config";
 
 export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    
     if (!origin) return callback(null, true);
     
     if (config.allowedOrigins.includes(origin)) {

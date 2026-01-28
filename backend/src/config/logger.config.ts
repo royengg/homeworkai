@@ -27,29 +27,24 @@ const transports: winston.transport[] = [
   }),
 ];
 
-
-
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(config.logFilePath, "error.log"),
-      level: "error",
-      format: logFormat,
-    }),
-    new winston.transports.File({
-      filename: path.join(config.logFilePath, "combined.log"),
-      format: logFormat,
-    })
-  );
-
+transports.push(
+  new winston.transports.File({
+    filename: path.join(config.logFilePath, "error.log"),
+    level: "error",
+    format: logFormat,
+  }),
+  new winston.transports.File({
+    filename: path.join(config.logFilePath, "combined.log"),
+    format: logFormat,
+  })
+);
 
 export const logger = winston.createLogger({
   level: config.logLevel,
   format: logFormat,
   transports,
-  
   exitOnError: false,
 });
-
 
 export function sanitizeLogData(data: any): any {
   if (!data || typeof data !== "object") return data;

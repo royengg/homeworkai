@@ -38,7 +38,6 @@ model Upload {
   etag        String?
   checksum    String?       
 
-
   status      UploadStatus  @default(uploading)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

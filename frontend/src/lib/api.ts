@@ -10,7 +10,6 @@ export const api = axios.create({
   },
 });
 
-
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
@@ -24,19 +23,16 @@ api.interceptors.request.use(
   }
 );
 
-
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
     if (error.response?.status === 401) {
-      // Don't redirect if we're already on the login page (prevents loops/refreshes on failed login attempts)
       if (window.location.pathname !== '/login') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
       }
     }
-    
     
     const message = error.response?.data?.error || error.message || 'An error occurred';
     

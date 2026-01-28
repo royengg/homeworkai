@@ -3,7 +3,6 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 
 const s3Routes = Router();
 
-
 s3Routes.use(
   "/",
   createProxyMiddleware({
@@ -13,7 +12,6 @@ s3Routes.use(
       "^/api/v1/s3": "",
     },
     onProxyReq: (proxyReq: any) => {
-
       proxyReq.setHeader("Host", "localhost:9000");
     },
   } as any)
