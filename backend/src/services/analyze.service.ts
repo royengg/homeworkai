@@ -2,7 +2,6 @@ import {
   GoogleGenerativeAI,
   SchemaType,
   type Schema,
-  type GenerationConfig,
 } from "@google/generative-ai";
 import {
   HOMEWORK_SOLVER_PROMPT,
@@ -142,7 +141,7 @@ function isRateLimitError(error: any): boolean {
 
 async function callModelResiliently(config: any, prompt: string) {
   let lastError: any = null;
-  const MAX_RETRIES_PER_MODEL = 2;
+  const MAX_RETRIES_PER_MODEL = 1;
   const BASE_DELAY_MS = 1000;
 
   for (const modelName of MODELS_FALLBACK_CHAIN) {
@@ -182,15 +181,15 @@ async function callModelResiliently(config: any, prompt: string) {
             const delay = retryDelay + retryCount * BASE_DELAY_MS;
             logger.warn(
               `Rate limit hit for ${modelName}, retrying in ${Math.ceil(
-                delay / 1000
-              )}s (attempt ${retryCount + 1}/${MAX_RETRIES_PER_MODEL + 1})...`
+                delay / 1000,
+              )}s (attempt ${retryCount + 1}/${MAX_RETRIES_PER_MODEL + 1})...`,
             );
             await sleep(delay);
             retryCount++;
             continue;
           } else {
             logger.warn(
-              `Quota or Rate Limit hit for ${modelName}, falling back to next model...`
+              `Quota or Rate Limit hit for ${modelName}, falling back to next model...`,
             );
 
             await sleep(BASE_DELAY_MS);
@@ -233,7 +232,7 @@ export async function generateBlueprint(pdfData: string): Promise<any> {
 export async function generateSection(
   blueprint: any,
   section: any,
-  pdfData: string
+  pdfData: string,
 ): Promise<any> {
   const config = {
     temperature: 0.5,
@@ -242,9 +241,9 @@ export async function generateSection(
     responseSchema: sectionSchema,
   };
   const prompt = `${ASSIGNMENT_SECTION_PROMPT}\n\nBLUEPRINT: ${JSON.stringify(
-    blueprint
+    blueprint,
   )}\n\nTARGET SECTION: ${JSON.stringify(
-    section
+    section,
   )}\n\nSOURCE MATERIAL: ${pdfData}`;
   return await callModelResiliently(config, prompt);
 }
