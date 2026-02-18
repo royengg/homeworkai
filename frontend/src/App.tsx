@@ -6,7 +6,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { UploadDetails } from './pages/UploadDetails';
-import { LandingPage } from './pages/LandingPage';
+import { HomeDesignOne } from './pages/HomeDesignOne';
 import './index.css';
 
 function App() {
@@ -17,7 +17,7 @@ function App() {
         v7_relativeSplatPath: true 
       }}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomeDesignOne />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route

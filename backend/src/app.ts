@@ -14,7 +14,6 @@ import { authMiddleware } from "./middleware/auth.middleware";
 import { corsOptions } from "./config/cors.config";
 import {
   apiLimiter,
-  authLimiter,
   uploadLimiter,
   analyzeLimiter,
 } from "./middleware/ratelimit.middleware";
@@ -49,7 +48,7 @@ app.use("/api/v1", apiRoutes);
 
 apiRoutes.use(apiLimiter);
 
-apiRoutes.use("/auth", authLimiter, authRoutes);
+apiRoutes.use("/auth", authRoutes);
 apiRoutes.use("/s3", s3Routes);
 apiRoutes.use("/users", userRoutes);
 
