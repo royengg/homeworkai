@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -174,12 +174,23 @@ export function UploadDetails() {
   const [analyzing, setAnalyzing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (uploadId) {
       fetchUploadDetails();
     }
-  }, [uploadId]);
+    return () => {
+      clearPolling();
+    };
+  }, [uploadId, clearPolling]);
 
   const fetchUploadDetails = async () => {
     try {
@@ -201,17 +212,23 @@ export function UploadDetails() {
       await api.post(`/analyze/${uploadId}`);
       fetchUploadDetails();
       
-      const interval = setInterval(async () => {
-        const res = await api.get<{ upload: Upload }>(`/upload/${uploadId}`);
-        const currentAnalysis = res.data.upload.analyses?.[0];
-        const status = currentAnalysis?.status; 
-        
-        if (status === 'completed' || status === 'failed') {
-          clearInterval(interval);
-          setUpload(res.data.upload);
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const res = await api.get<{ upload: Upload }>(`/upload/${uploadId}`);
+          const currentAnalysis = res.data.upload.analyses?.[0];
+          const status = currentAnalysis?.status;
+          
+          if (status === 'completed' || status === 'failed') {
+            clearPolling();
+            setUpload(res.data.upload);
+            setAnalyzing(false);
+          } else if (status === 'running') {
+            setUpload(res.data.upload);
+          }
+        } catch (err) {
+          clearPolling();
+          setApiError(handleApiError(err));
           setAnalyzing(false);
-        } else if (currentAnalysis?.status === 'running') {
-          setUpload(res.data.upload);
         }
       }, 3000);
 

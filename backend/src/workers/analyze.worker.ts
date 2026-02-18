@@ -1,4 +1,4 @@
-import { Worker } from "bullmq";
+import { Worker, WorkerOptions } from "bullmq";
 import { processAnalyzeJob } from "../processors/analyze.processor";
 import { Jobs } from "../types/job.types";
 import { Job } from "bullmq";
@@ -11,6 +11,15 @@ if (!redis) {
   );
 }
 
+const workerOptions: WorkerOptions = {
+  connection: redis,
+  concurrency: 1,
+  limiter: {
+    max: 5,
+    duration: 60000,
+  },
+};
+
 const worker = new Worker<Jobs>(
   "analyzeJobs",
   async function worker(job: Job<Jobs>) {
@@ -20,7 +29,7 @@ const worker = new Worker<Jobs>(
     });
     await processAnalyzeJob(job);
   },
-  { connection: redis }
+  workerOptions
 );
 
 worker.on("completed", (job) => {
@@ -32,9 +41,18 @@ worker.on("failed", (job, err) => {
     logger.error("Analysis job failed", { 
       jobId: job.id, 
       error: err.message,
-      attemptsMade: job.attemptsMade 
+      attemptsMade: job.attemptsMade,
+      stack: err.stack
     });
   }
+});
+
+worker.on("error", (err) => {
+  logger.error("Worker error", { error: err.message, stack: err.stack });
+});
+
+worker.on("stalled", (jobId) => {
+  logger.warn("Job stalled", { jobId });
 });
 
 process.on("SIGINT", async () => {
@@ -49,4 +67,7 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-logger.info("Analysis worker started");
+logger.info("Analysis worker started", {
+  concurrency: workerOptions.concurrency,
+  limiter: workerOptions.limiter,
+});
