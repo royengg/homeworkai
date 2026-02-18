@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export function HomeDesignOne() {
   return (
@@ -18,6 +19,7 @@ export function HomeDesignOne() {
           <a href="#subjects" className="hover:underline">Subjects</a>
           <a href="#faq" className="hover:underline">FAQ</a>
           <Link to="/login" className="underline underline-offset-4">Login</Link>
+          <ThemeToggle />
         </nav>
       </header>
 

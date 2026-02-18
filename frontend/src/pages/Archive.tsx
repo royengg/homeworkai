@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
-
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from '@/components/ui/Badge';
 import { api, handleApiError } from '@/lib/api';
 import type { Upload } from '@/lib/types';
-import { 
-  Trash2, 
+import {
+  Trash2,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -33,11 +32,12 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
-export function Dashboard() {
+export function Archive() {
   const navigate = useNavigate();
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -48,13 +48,15 @@ export function Dashboard() {
 
   const fetchUploads = async (cursor?: string | null) => {
     try {
-      if (!cursor) {
+      if (cursor) {
+        setLoadingMore(true);
+      } else {
         setLoading(true);
       }
-      
-      const query = cursor ? `?cursor=${cursor}&limit=6` : `?limit=6`;
+
+      const query = cursor ? `?cursor=${cursor}&limit=12` : `?limit=12`;
       const response = await api.get<{ items: Upload[], nextCursor: string | null }>(`/upload/list${query}`);
-      
+
       if (cursor) {
         setUploads(prev => [...prev, ...response.data.items]);
       } else {
@@ -65,10 +67,9 @@ export function Dashboard() {
       setError(handleApiError(err));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
-
-
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,7 +80,7 @@ export function Dashboard() {
       return;
     }
 
-    const maxSize = 20 * 1024 * 1024; 
+    const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
       setError('File size must not exceed 20MB');
       return;
@@ -109,14 +110,14 @@ export function Dashboard() {
         bucket,
         key,
       });
-      
+
       await api.post(`/parse/${uploadId}`).catch(console.error);
       await fetchUploads();
     } catch (err) {
       setError(handleApiError(err));
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = ''; 
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -149,19 +150,18 @@ export function Dashboard() {
 
   return (
     <div className="space-y-12 text-[#1c1b19] dark:text-[#f7f3ee]">
-      {/* Dynamic Workspace Header */}
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
              <div className="h-2 w-2 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] animate-pulse shadow-[0_0_10px_rgba(28,27,25,0.5)]" />
-             <span className="text-[10px] font-mono-alt uppercase tracking-[0.3em] text-[#3b3a37] dark:text-[#b9b3aa]">Recent Uploads</span>
+             <span className="text-[10px] font-mono-alt uppercase tracking-[0.3em] text-[#3b3a37] dark:text-[#b9b3aa]">Full Archive</span>
           </div>
-          <h1 className="text-5xl font-black tracking-tight">Dashboard</h1>
+          <h1 className="text-5xl font-black tracking-tight">Archive</h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
-            Your most recent uploads and the latest processed solutions.
+            Every upload and generated solution, with pagination.
           </p>
         </div>
-        
+
         <div className="flex-shrink-0">
             <input
                 ref={fileInputRef}
@@ -171,7 +171,7 @@ export function Dashboard() {
                 disabled={uploading}
                 className="hidden"
             />
-            <Button 
+            <Button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
                 className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] text-[#f7f3ee] dark:text-[#1c1b19] hover:scale-[0.98] transition-transform shadow-warm font-bold text-sm tracking-tight flex items-center gap-3"
@@ -187,7 +187,7 @@ export function Dashboard() {
       </section>
 
       {error && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3 p-4 text-xs font-bold bg-white/70 dark:bg-[#121212] border border-[#1c1b19] dark:border-[#2a2a2a] rounded-xl"
@@ -198,17 +198,16 @@ export function Dashboard() {
         </motion.div>
       )}
 
-      {/* Grid Flow */}
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b border-[#1c1b19] dark:border-[#2a2a2a] pb-4">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-[#3b3a37] dark:text-[#b9b3aa]" />
             <h3 className="text-xs font-mono-alt uppercase tracking-[0.2em] text-[#3b3a37] dark:text-[#b9b3aa]">
-               Recent Items
+               Source Library
             </h3>
           </div>
           <span className="text-[10px] font-mono-alt bg-white/70 dark:bg-[#121212] px-2 py-0.5 rounded border border-[#1c1b19] dark:border-[#2a2a2a] text-[#3b3a37] dark:text-[#b9b3aa]">
-              {uploads.length} Recent
+              {uploads.length} Items Loaded
           </span>
         </div>
 
@@ -229,21 +228,21 @@ export function Dashboard() {
             </p>
           </div>
         ) : (
-          <motion.div 
+          <motion.div
             variants={container}
             initial="hidden"
             animate="show"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             {uploads.map((upload) => (
-              <motion.div 
+              <motion.div
                 key={upload.uploadId}
                 variants={item}
                 onClick={() => upload.status === 'processed' && navigate(`/upload/${upload.uploadId}`)}
                 className={cn(
                   "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
-                  upload.status === 'processed' 
-                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:bg-white dark:hover:bg-[#161616] cursor-pointer shadow-soft hover:shadow-warm" 
+                  upload.status === 'processed'
+                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:bg-white dark:hover:bg-[#161616] cursor-pointer shadow-soft hover:shadow-warm"
                     : "bg-white/40 dark:bg-[#0f0f0f] border-[#1c1b19] dark:border-[#2a2a2a] opacity-70"
                 )}
               >
@@ -254,7 +253,7 @@ export function Dashboard() {
                     </div>
                     {getStatusBadge(upload.status)}
                   </div>
-                  
+
                   <div className="space-y-1">
                     <h4 className="font-bold text-sm leading-tight truncate pr-4">
                       {upload.key.split('/').pop()?.replace(/_\d+\.pdf$/, '.pdf')}
@@ -279,10 +278,10 @@ export function Dashboard() {
                           </div>
                         )}
                    </div>
-                   
-                    <Button 
-                       variant="ghost" 
-                       size="icon" 
+
+                    <Button
+                       variant="ghost"
+                       size="icon"
                        className="h-7 w-7 rounded-lg text-[#3b3a37] dark:text-[#b9b3aa] hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto"
                        onClick={(e) => handleDelete(e, upload.uploadId)}
                     >
@@ -294,15 +293,16 @@ export function Dashboard() {
           </motion.div>
         )}
       </div>
-      
+
       {nextCursor && (
           <div className="flex justify-center pt-8">
             <Button
                 variant="outline"
-                onClick={() => navigate('/uploads')}
+                onClick={() => fetchUploads(nextCursor)}
+                disabled={loadingMore}
                 className="rounded-full h-12 px-10 border-[#1c1b19] dark:border-[#2a2a2a] text-xs font-mono-alt uppercase tracking-widest hover:bg-white/70 dark:hover:bg-[#161616]"
             >
-                View Full Archive
+                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extend Library"}
             </Button>
         </div>
       )}

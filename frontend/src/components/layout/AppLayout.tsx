@@ -63,6 +63,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const navItems = [
     { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
     { to: '/uploads', icon: <FileText className="h-4 w-4" />, label: 'Archive' },
+    { to: '/settings', icon: <Settings className="h-4 w-4" />, label: 'Settings' },
   ];
 
   const handleLogout = () => {
@@ -107,16 +108,6 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <Separator className="my-6 opacity-50 mx-3" />
           
           <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 text-[#3b3a37] dark:text-[#9b948a]">Systems</div>
-          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19] hover:bg-[#f7f3ee] dark:hover:bg-[#1a1a1a] transition-all group">
-             <Settings className="h-4 w-4 group-hover:rotate-45 transition-transform" />
-             Settings
-          </button>
-          <div className="px-3 pt-4">
-             <div className="p-3 border border-[#1c1b19] dark:border-[#262626] rounded-xl flex items-center justify-between bg-white/70 dark:bg-[#131313]">
-               <span className="text-xs font-mono-alt text-[#3b3a37] dark:text-[#c8c2b8]">Dark Mode</span>
-               <ThemeToggle />
-             </div>
-          </div>
         </nav>
 
         <div className="p-4 border-t border-[#1c1b19] dark:border-[#262626]">
@@ -160,6 +151,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
              <span className="font-semibold uppercase tracking-wider">{location.pathname.split('/').pop() || 'Personal'}</span>
            </div>
            <div className="flex items-center gap-3">
+             <ThemeToggle />
              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19]">
                 <Bell className="h-4 w-4" />
              </Button>
