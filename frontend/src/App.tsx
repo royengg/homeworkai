@@ -6,7 +6,9 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { UploadDetails } from './pages/UploadDetails';
-import { LandingPage } from './pages/LandingPage';
+import { HomeDesignOne } from './pages/HomeDesignOne';
+import { Settings } from './pages/Settings';
+import { Archive } from './pages/Archive';
 import './index.css';
 
 function App() {
@@ -17,7 +19,7 @@ function App() {
         v7_relativeSplatPath: true 
       }}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomeDesignOne />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -45,7 +47,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <Dashboard />
+                  <Archive />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Settings />
                 </AppLayout>
               </ProtectedRoute>
             }
