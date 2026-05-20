@@ -9,7 +9,6 @@ import authRoutes from "./routes/auth.route";
 import analyzeRoutes from "./routes/analyze.route";
 import healthRoutes from "./routes/health.route";
 import docxParseRoutes from "./routes/docx.parse.route";
-import s3Routes from "./routes/s3.route";
 import { authMiddleware } from "./middleware/auth.middleware";
 
 import { corsOptions } from "./config/cors.config";
@@ -53,7 +52,6 @@ app.use("/api/v1", apiRoutes);
 apiRoutes.use(apiLimiter);
 
 apiRoutes.use("/auth", authRoutes);
-apiRoutes.use("/s3", s3Routes);
 apiRoutes.use("/users", userRoutes);
 
 apiRoutes.use("/parse", authMiddleware, parseRoutes);

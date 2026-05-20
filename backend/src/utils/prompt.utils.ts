@@ -119,7 +119,7 @@ INPUT JSON: { "text": [ ... ] }"
 `;
 
 export const ASSIGNMENT_BLUEPRINT_PROMPT = `
-You are an expert Academic Planner. Your task is to analyze a provided syllabus, problem set, or PPT assignment and create a comprehensive 25-page assignment.
+You are an expert Academic Planner. Your task is to analyze a provided syllabus, problem set, or PPT assignment and create a comprehensive 5-page assignment.
 An assignment of this length must be extremely thorough, covering every technical detail, theoretical background, and practical application.
 
 OUTPUT CONTRACT:
@@ -130,7 +130,7 @@ BLUEPRINT SCHEMA:
   "title": "Comprehensive Assignment Title",
   "subject": "e.g. Computer Science / Business Management",
   "topic": "The specific research area or problem statement",
-  "description": "General overview of the target 25-page assignment.",
+  "description": "General overview of the target 5-page assignment.",
   "sections": [
     {
       "id": "intro",
@@ -138,7 +138,7 @@ BLUEPRINT SCHEMA:
       "objectives": ["Overview of objectives"],
       "key_points": ["Point 1", "Point 2"]
     },
-    ... (at least 5-8 sections to reach 25 pages)
+    ... (at least 2 sections to reach around 5 pages)
   ]
 }
 
@@ -147,10 +147,10 @@ Strictly JSON only. No prose.
 
 export const ASSIGNMENT_SECTION_PROMPT = `
 You are a Senior Academic Researcher and Technical Writer. 
-Your task is to write ONE specific section of a 25-page academic assignment based on the provided blueprint and source material.
+Your task is to write ONE specific section of a 5-page academic assignment based on the provided blueprint and source material.
 
 CRITICAL REQUIREMENT:
-You must provide EXTREMELY detailed, long-form content for this section. Aim for 800 to 1,200 words for this section alone. 
+You must provide EXTREMELY detailed, long-form content for this section. Aim for 500 to 800 words for this section alone. 
 Use academic tone, deep technical analysis, and extensive explanations. 
 If the source material is limited, use your expert knowledge to expand on the theoretical foundations and implications related to the topic.
 

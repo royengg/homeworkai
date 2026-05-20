@@ -19,6 +19,4 @@ export const config = {
   
   logLevel: process.env.LOG_LEVEL || "info",
   logFilePath: process.env.LOG_FILE_PATH || "./logs",
-
-  backendPublicUrl: process.env.BACKEND_PUBLIC_URL || "http://localhost:3000",
 } as const;

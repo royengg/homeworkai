@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { Link } from "react-router-dom";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function HomeDesignOne() {
   return (
@@ -11,14 +11,26 @@ export function HomeDesignOne() {
           <div className="w-10 h-10 rounded-full border border-[#1c1b19] grid place-items-center text-sm font-mono-alt">
             HW
           </div>
-          <div className="text-sm tracking-[0.2em] uppercase font-mono-alt">HomeworkAI</div>
+          <div className="text-sm tracking-[0.2em] uppercase font-mono-alt">
+            HomeworkAI
+          </div>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-sm font-mono-alt">
-          <a href="#features" className="hover:underline">Features</a>
-          <a href="#method" className="hover:underline">Method</a>
-          <a href="#subjects" className="hover:underline">Subjects</a>
-          <a href="#faq" className="hover:underline">FAQ</a>
-          <Link to="/login" className="underline underline-offset-4">Login</Link>
+          <a href="#features" className="hover:underline">
+            Features
+          </a>
+          <a href="#method" className="hover:underline">
+            Method
+          </a>
+          <a href="#subjects" className="hover:underline">
+            Subjects
+          </a>
+          <a href="#faq" className="hover:underline">
+            FAQ
+          </a>
+          <Link to="/login" className="underline underline-offset-4">
+            Login
+          </Link>
           <ThemeToggle />
         </nav>
       </header>
@@ -31,12 +43,12 @@ export function HomeDesignOne() {
               Editorial-grade analysis for real homework
             </div>
             <h1 className="text-5xl md:text-7xl leading-[0.95]">
-              Turn scanned assignments into{' '}
+              Turn scanned assignments into{" "}
               <span className="italic">clear thinking</span>.
             </h1>
             <p className="text-lg md:text-xl font-sans-alt max-w-2xl">
-              HomeworkAI reads messy PDFs, explains the reasoning, and produces a clean solution packet
-              you can actually study from.
+              HomeworkAI reads messy PDFs, explains the reasoning, and produces
+              a clean solution you can actually study from.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Link
@@ -53,7 +65,7 @@ export function HomeDesignOne() {
               </Link>
             </div>
             <div className="flex items-center gap-6 text-xs font-mono-alt text-[#3b3a37]">
-              <span>PDF · OCR · Gemini</span>
+              <span>PDF · PPT · DOCX </span>
               <span className="h-4 w-px bg-[#1c1b19]"></span>
               <span>Trusted by study groups</span>
             </div>
@@ -83,11 +95,23 @@ export function HomeDesignOne() {
 
         <section id="features" className="mt-20 grid md:grid-cols-3 gap-6">
           {[
-            ['Precision OCR', 'Reads math, diagrams, and handwritten steps without losing context.'],
-            ['Step-by-step', 'Breaks solutions into human-readable reasoning blocks.'],
-            ['Shareable packet', 'Export a polished PDF you can submit or study.'],
+            [
+              "Precision OCR",
+              "Reads math, diagrams, and handwritten steps without losing context.",
+            ],
+            [
+              "Step-by-step",
+              "Breaks solutions into human-readable reasoning segments.",
+            ],
+            [
+              "Shareable solution",
+              "Export a polished PDF you can submit or study.",
+            ],
           ].map(([title, desc]) => (
-            <div key={title} className="border border-[#1c1b19] rounded-3xl p-6 bg-white/70">
+            <div
+              key={title}
+              className="border border-[#1c1b19] rounded-3xl p-6 bg-white/70"
+            >
               <h3 className="text-xl mb-2">{title}</h3>
               <p className="font-sans-alt text-sm text-[#3b3a37]">{desc}</p>
             </div>
@@ -107,14 +131,19 @@ export function HomeDesignOne() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
-              ['Math', 'From calculus to discrete structures'],
-              ['Science', 'Physics, chemistry, and lab sheets'],
-              ['CS', 'Theory, proofs, and complexity'],
-              ['Econ', 'Models and quantitative analysis'],
+              ["Math", "From calculus to discrete structures"],
+              ["Science", "Physics, chemistry, and lab sheets"],
+              ["CS", "Theory, proofs, and complexity"],
+              ["Econ", "Models and quantitative analysis"],
             ].map(([title, desc]) => (
-              <div key={title} className="border border-[#1c1b19] rounded-2xl p-4 bg-white/70">
+              <div
+                key={title}
+                className="border border-[#1c1b19] rounded-2xl p-4 bg-white/70"
+              >
                 <div className="text-sm font-mono-alt">{title}</div>
-                <div className="text-sm font-sans-alt text-[#3b3a37]">{desc}</div>
+                <div className="text-sm font-sans-alt text-[#3b3a37]">
+                  {desc}
+                </div>
               </div>
             ))}
           </div>
@@ -127,12 +156,8 @@ export function HomeDesignOne() {
             </div>
             <div className="font-sans-alt text-sm md:text-base text-[#3b3a37] space-y-4">
               <p>
-                Upload a PDF, we parse the structure, route the questions to Gemini for reasoning,
-                then render a clean answer sheet with citations.
-              </p>
-              <p>
-                Built for students who want to learn the why, and for educators who need consistent
-                outputs without the busywork.
+                Built for students who want to learn the why, and for educators
+                who need consistent outputs without the busywork.
               </p>
             </div>
           </div>
@@ -140,11 +165,23 @@ export function HomeDesignOne() {
 
         <section className="mt-16 grid md:grid-cols-3 gap-6">
           {[
-            ['Faster review', 'Reduce time spent reformatting solutions for study.'],
-            ['Cleaner reasoning', 'Every step is labeled and explained in context.'],
-            ['Consistent quality', 'Outputs are formatted for focus and clarity.'],
+            [
+              "Faster review",
+              "Reduce time spent reformatting solutions for study.",
+            ],
+            [
+              "Cleaner reasoning",
+              "Every step is labeled and explained in context.",
+            ],
+            [
+              "Consistent quality",
+              "Outputs are formatted for focus and clarity.",
+            ],
           ].map(([title, desc]) => (
-            <div key={title} className="border border-[#1c1b19] rounded-3xl p-6 bg-white/70 relative">
+            <div
+              key={title}
+              className="border border-[#1c1b19] rounded-3xl p-6 bg-white/70 relative"
+            >
               <div className="absolute -top-3 -right-3 w-8 h-8 border border-[#1c1b19] rounded-full"></div>
               <div className="text-sm font-mono-alt">OUTCOME</div>
               <h3 className="text-xl mt-2 mb-2">{title}</h3>
@@ -153,33 +190,43 @@ export function HomeDesignOne() {
           ))}
         </section>
 
-        <section className="mt-16 border border-[#1c1b19] rounded-3xl p-6 md:p-8 bg-white/70">
+        {/* <section className="mt-16 border border-[#1c1b19] rounded-3xl p-6 md:p-8 bg-white/70">
           <div className="flex flex-wrap items-center gap-6">
             <div className="text-xs font-mono-alt">WORKFLOW</div>
-            {['Upload', 'Parse', 'Explain', 'Export'].map((step, index) => (
+            {["Upload", "Parse", "Explain", "Export"].map((step, index) => (
               <div key={step} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-full border border-[#1c1b19] grid place-items-center text-xs font-mono-alt">
                   {index + 1}
                 </div>
-                <div className="text-sm font-sans-alt text-[#3b3a37]">{step}</div>
+                <div className="text-sm font-sans-alt text-[#3b3a37]">
+                  {step}
+                </div>
               </div>
             ))}
           </div>
-        </section>
+        </section> */}
 
-        <section id="subjects" className="mt-20 border-t border-[#1c1b19] pt-10">
+        <section
+          id="subjects"
+          className="mt-20 border-t border-[#1c1b19] pt-10"
+        >
           <div className="grid md:grid-cols-[0.7fr_1.3fr] gap-10">
-            <div className="text-3xl leading-tight">Subjects we handle well.</div>
+            <div className="text-3xl leading-tight">
+              Subjects we handle well.
+            </div>
             <div className="grid sm:grid-cols-2 gap-4 font-sans-alt text-sm text-[#3b3a37]">
               {[
-                'Calculus & algebra',
-                'Physics & mechanics',
-                'Chemistry problem sets',
-                'Statistics & probability',
-                'Computer science theory',
-                'Economics & finance',
+                "Calculus & algebra",
+                "Physics & mechanics",
+                "Chemistry problem sets",
+                "Statistics & probability",
+                "Computer science theory",
+                "Economics & finance",
               ].map((item) => (
-                <div key={item} className="border border-[#1c1b19] rounded-2xl p-4 bg-white/70">
+                <div
+                  key={item}
+                  className="border border-[#1c1b19] rounded-2xl p-4 bg-white/70"
+                >
                   {item}
                 </div>
               ))}
@@ -191,14 +238,19 @@ export function HomeDesignOne() {
           <div className="border border-[#1c1b19] rounded-3xl p-6 bg-white/70">
             <div className="text-xs font-mono-alt">STUDENT NOTE</div>
             <p className="mt-4 text-lg md:text-xl font-editorial">
-              "It feels like someone rewrote the assignment in a way I actually understand."
+              "It feels like someone rewrote the assignment in a way I actually
+              understand."
             </p>
-            <div className="mt-4 text-xs font-mono-alt text-[#3b3a37]">— Lina, 2nd year engineering</div>
+            <div className="mt-4 text-xs font-mono-alt text-[#3b3a37]">
+              — Lina, 2nd year engineering
+            </div>
           </div>
           <div className="border border-[#1c1b19] rounded-3xl p-6 bg-[#1c1b19] text-[#f7f3ee]">
             <div className="text-xs font-mono-alt">DISTRIBUTION</div>
-            <div className="mt-4 text-3xl">15k+</div>
-            <div className="text-sm font-sans-alt">PDF packets delivered this semester.</div>
+            <div className="mt-4 text-3xl">5k+</div>
+            <div className="text-sm font-sans-alt">
+              PDF solutions delivered this semester.
+            </div>
           </div>
         </section>
 
@@ -207,16 +259,30 @@ export function HomeDesignOne() {
             <div className="text-3xl leading-tight">Questions, answered.</div>
             <div className="space-y-6 font-sans-alt text-sm md:text-base text-[#3b3a37]">
               <div>
-                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">Accuracy</div>
-                <p>We preserve formatting and show reasoning steps so you can verify each answer.</p>
+                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">
+                  Accuracy
+                </div>
+                <p>
+                  We preserve formatting and show reasoning steps so you can
+                  verify each answer.
+                </p>
               </div>
               <div>
-                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">Privacy</div>
-                <p>Uploads are secured and stored only as needed to deliver the final packet.</p>
+                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">
+                  Privacy
+                </div>
+                <p>
+                  Uploads are secured and stored only as needed to deliver the
+                  final output.
+                </p>
               </div>
               <div>
-                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">Speed</div>
-                <p>Most assignments return in minutes, even for multi-page PDFs.</p>
+                <div className="font-mono-alt text-xs uppercase tracking-[0.2em]">
+                  Speed
+                </div>
+                <p>
+                  Most assignments return in minutes, even for multi-page PDFs.
+                </p>
               </div>
             </div>
           </div>
@@ -225,16 +291,25 @@ export function HomeDesignOne() {
         <section className="mt-20 border border-[#1c1b19] rounded-3xl p-8 md:p-10 bg-white/70">
           <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl leading-tight">Ready to make homework legible?</h2>
+              <h2 className="text-3xl md:text-4xl leading-tight">
+                Ready to make homework legible?
+              </h2>
               <p className="font-sans-alt text-sm md:text-base text-[#3b3a37] mt-3">
-                Try HomeworkAI free and export your first clean solution packet today.
+                Try HomeworkAI free and export your first solved assignment
+                today.
               </p>
             </div>
             <div className="flex flex-wrap gap-4 md:justify-end">
-              <Link to="/register" className="px-6 py-3 bg-[#1c1b19] text-[#f7f3ee] rounded-full text-sm font-mono-alt">
+              <Link
+                to="/register"
+                className="px-6 py-3 bg-[#1c1b19] text-[#f7f3ee] rounded-full text-sm font-mono-alt"
+              >
                 Start free
               </Link>
-              <Link to="/login" className="px-6 py-3 border border-[#1c1b19] rounded-full text-sm font-mono-alt">
+              <Link
+                to="/login"
+                className="px-6 py-3 border border-[#1c1b19] rounded-full text-sm font-mono-alt"
+              >
                 Talk to sales
               </Link>
             </div>

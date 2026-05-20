@@ -83,7 +83,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
       let fullContentSoFar = `# ${blueprint.title}\n\n${blueprint.description}\n\n---\n\n`;
       expandedSections.forEach((s: any) => {
         const bSection = blueprint.sections.find(
-          (bs: any) => bs.id === s.section_id
+          (bs: any) => bs.id === s.section_id,
         );
         fullContentSoFar += `## ${bSection?.title || "Section"}\n\n${
           s.content
@@ -110,9 +110,9 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
         include: { upload: { include: { parseResult: true } } },
       });
 
-      for (const [index, section] of blueprint.sections.slice(0, 8).entries()) {
+      for (const [index, section] of blueprint.sections.slice(0, 2).entries()) {
         const alreadyDone = expandedSections.find(
-          (s: any) => s.section_id === section.id
+          (s: any) => s.section_id === section.id,
         );
         if (alreadyDone) {
           logger.info(`Section ${index + 1} already exists, skipping...`, {
@@ -123,10 +123,10 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
 
         logger.info(
           `Expanding section ${index + 1}/${blueprint.sections.length}`,
-          { sectionId: section.id }
+          { sectionId: section.id },
         );
         await job.updateProgress(
-          Math.floor(((index + 1) / blueprint.sections.length) * 100)
+          Math.floor(((index + 1) / blueprint.sections.length) * 100),
         );
 
         if (index > 0) await sleep(5000);
@@ -137,7 +137,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
         let fullContentSoFar = `# ${blueprint.title}\n\n${blueprint.description}\n\n---\n\n`;
         expandedSections.forEach((s: any) => {
           const bSection = blueprint.sections.find(
-            (bs: any) => bs.id === s.section_id
+            (bs: any) => bs.id === s.section_id,
           );
           fullContentSoFar += `## ${bSection?.title || "Section"}\n\n${
             s.content

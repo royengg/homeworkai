@@ -1,8 +1,9 @@
 import { Response } from "express";
 import { presignSchema, confirmSchema, listUploadSchema } from "../schema/upload.schema";
-import { presignPut, headObject } from "../services/storage.service";
+import { presignPut, headObject, deleteObject, deleteObjectsByPrefix } from "../services/storage.service";
 import { prisma } from "../db/prisma.db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { logger } from "../config/logger.config";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -211,10 +212,13 @@ export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
   if (!uploadId) {
     return res.status(400).json({ error: "Missing uploadId" });
   }
+
   try {
     const upload = await prisma.upload.findFirst({
-      where: { uploadId: uploadId, userId: user.userId },
+      where: { uploadId, userId: user.userId },
+      include: { analyses: true },
     });
+
     if (!upload) {
       return res.status(404).json({ error: "Upload not found" });
     }
@@ -223,11 +227,75 @@ export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
       return res.status(403).json({ error: "User mismatch" });
     }
 
+    const storageErrors: string[] = [];
+
+    try {
+      await deleteObject({ key: upload.key, bucket: upload.bucket });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Failed to delete original file from storage", {
+        key: upload.key,
+        bucket: upload.bucket,
+        error: msg,
+      });
+      storageErrors.push(`Original file: ${msg}`);
+    }
+
+    try {
+      await deleteObjectsByPrefix({
+        prefix: `exports/${uploadId}/`,
+        bucket: upload.bucket,
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Failed to delete export files from storage", {
+        prefix: `exports/${uploadId}/`,
+        bucket: upload.bucket,
+        error: msg,
+      });
+      storageErrors.push(`Export files: ${msg}`);
+    }
+
+    for (const analysis of upload.analyses) {
+      if (analysis.solutionKey) {
+        try {
+          await deleteObject({
+            key: analysis.solutionKey,
+            bucket: analysis.solutionBucket ?? upload.bucket,
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : "Unknown error";
+          logger.error("Failed to delete analysis solution file from storage", {
+            key: analysis.solutionKey,
+            bucket: analysis.solutionBucket ?? upload.bucket,
+            analysisId: analysis.id,
+            error: msg,
+          });
+          storageErrors.push(`Analysis ${analysis.id} solution: ${msg}`);
+        }
+      }
+    }
+
     await prisma.upload.delete({
-      where: { uploadId: uploadId },
+      where: { uploadId },
     });
-    return res.status(200).json({ message: "Upload deleted successfully" });
+
+    logger.info("Upload deleted", {
+      uploadId,
+      storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
+    });
+
+    return res.status(200).json({
+      message: "Upload deleted successfully",
+      storageCleanup: storageErrors.length > 0
+        ? { warnings: storageErrors }
+        : { status: "complete" },
+    });
   } catch (error) {
+    logger.error("Failed to delete upload", {
+      uploadId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return res.status(500).json({ error: "Failed to delete upload" });
   }
 }

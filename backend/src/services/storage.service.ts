@@ -1,7 +1,13 @@
-import { PutObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3, storageBucket } from "../config/storage.config";
-import { config } from "../config/app.config";
+import { logger } from "../config/logger.config";
 
 export async function presignPut(params: {
   key: string;
@@ -18,13 +24,6 @@ export async function presignPut(params: {
   });
   let url = await getSignedUrl(s3, command, { expiresIn });
 
-  const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
-  const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
-  
-  if (url.includes(endpoint.origin)) {
-     url = url.replace(endpoint.origin, publicProxyBase);
-  }
-
   const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
   return { bucket, key: params.key, url, expiresAt };
 }
@@ -32,7 +31,7 @@ export async function presignPut(params: {
 export async function headObject(params: { key: string; bucket?: string }) {
   const bucket = params.bucket ?? storageBucket;
   const res = await s3.send(
-    new HeadObjectCommand({ Bucket: bucket, Key: params.key })
+    new HeadObjectCommand({ Bucket: bucket, Key: params.key }),
   );
   return {
     bucket,
@@ -57,12 +56,69 @@ export async function presignGet(params: {
   });
   let url = await getSignedUrl(s3, command, { expiresIn });
 
-  const endpoint = new URL(process.env.STORAGE_ENDPOINT || "http://127.0.0.1:9000");
-  const publicProxyBase = `${config.backendPublicUrl}/api/v1/s3`;
-  
-  if (url.includes(endpoint.origin)) {
-     url = url.replace(endpoint.origin, publicProxyBase);
-  }
-
   return { bucket, key: params.key, url };
+}
+
+export async function deleteObject(params: { key: string; bucket?: string }) {
+  const bucket = params.bucket ?? storageBucket;
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: params.key }));
+    logger.info("Deleted object from storage", { bucket, key: params.key });
+  } catch (error) {
+    logger.error("Failed to delete object from storage", {
+      bucket,
+      key: params.key,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    throw error;
+  }
+}
+
+export async function deleteObjectsByPrefix(params: {
+  prefix: string;
+  bucket?: string;
+}) {
+  const bucket = params.bucket ?? storageBucket;
+  const keys: string[] = [];
+
+  try {
+    const listResponse = await s3.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: params.prefix }),
+    );
+
+    if (listResponse.Contents && listResponse.Contents.length > 0) {
+      for (const obj of listResponse.Contents) {
+        if (obj.Key) keys.push(obj.Key);
+      }
+    }
+
+    for (const key of keys) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      } catch (error) {
+        logger.error("Failed to delete object by prefix", {
+          bucket,
+          key,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+
+    if (keys.length > 0) {
+      logger.info("Deleted objects by prefix from storage", {
+        bucket,
+        prefix: params.prefix,
+        count: keys.length,
+      });
+    }
+
+    return keys;
+  } catch (error) {
+    logger.error("Failed to list objects by prefix from storage", {
+      bucket,
+      prefix: params.prefix,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return keys;
+  }
 }
