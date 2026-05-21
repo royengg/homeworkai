@@ -3,10 +3,7 @@ import { OfficeParser } from "officeparser";
 export async function parseDocx(buffer: Buffer): Promise<string> {
   try {
     const parser = await OfficeParser.parseOffice(buffer);
-    const text = parser.toText();
-    const cleaned = text.replace(/```json\n?|```/g, "");
-
-    return cleaned;
+    return parser.toText();
   } catch (e) {
     throw new Error(
       e instanceof Error

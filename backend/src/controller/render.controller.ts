@@ -41,8 +41,18 @@ export async function renderAnalysis(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ message: "Invalid output format", payload: output.error });
     }
 
-    const { buffer, pages } = await renderSlimToPdfBuffer(output.data);
     const key = `exports/${uploadId}/${analysisId}.pdf`;
+
+    // Check if PDF already exists in storage to avoid re-rendering
+    try {
+      await headObject({ key, bucket: upload.bucket });
+      const { url } = await presignGet({ key, bucket: upload.bucket });
+      return res.status(200).json({ key, pages: analysis.pages, url });
+    } catch {
+      // PDF doesn't exist yet — render it
+    }
+
+    const { buffer, pages } = await renderSlimToPdfBuffer(output.data);
     
     await s3.send(
       new PutObjectCommand({
@@ -52,6 +62,12 @@ export async function renderAnalysis(req: AuthenticatedRequest, res: Response) {
         ContentType: "application/pdf",
       })
     );
+
+    // Save page count on the analysis record for future cache hits
+    await prisma.analysisResult.update({
+      where: { id: analysisId },
+      data: { solutionBucket: upload.bucket, solutionKey: key, pages },
+    });
 
     const { url } = await presignGet({ key, bucket: upload.bucket });
 
@@ -82,6 +98,7 @@ export async function getDownloadUrl(req: AuthenticatedRequest, res: Response) {
       return res.status(upload ? 403 : 404).json({ message: upload ? "Forbidden" : "Upload not found" });
     }
 
+    // Delegate to renderAnalysis which handles caching internally
     return renderAnalysis(req, res);
   } catch (error) {
     logger.error("Failed to get download URL", { error, uploadId, analysisId });

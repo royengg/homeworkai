@@ -30,13 +30,7 @@ export const analyzeJobsQueue = new Queue<Jobs>("analyzeJobs", {
 
 export async function enqueueAnalysisJob(jobName: string, jobData: Jobs) {
   try {
-    const job = await analyzeJobsQueue.add(jobName, jobData, {
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 5000,
-      },
-    });
+    const job = await analyzeJobsQueue.add(jobName, jobData);
     logger.info("Analysis job enqueued", { 
       jobId: job.id, 
       analysisId: jobData.analysisId,

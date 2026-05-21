@@ -1,8 +1,6 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
-import userRoutes from "./routes/user.route";
 import parseRoutes from "./routes/parse.route";
 import uploadRoutes from "./routes/upload.route";
 import authRoutes from "./routes/auth.route";
@@ -14,6 +12,7 @@ import { authMiddleware } from "./middleware/auth.middleware";
 import { corsOptions } from "./config/cors.config";
 import {
   apiLimiter,
+  authLimiter,
   uploadLimiter,
   analyzeLimiter,
 } from "./middleware/ratelimit.middleware";
@@ -25,7 +24,6 @@ import {
 import { logger } from "./config/logger.config";
 import { config } from "./config/app.config";
 
-dotenv.config();
 
 const PORT = config.port;
 
@@ -51,8 +49,7 @@ app.use("/api/v1", apiRoutes);
 
 apiRoutes.use(apiLimiter);
 
-apiRoutes.use("/auth", authRoutes);
-apiRoutes.use("/users", userRoutes);
+apiRoutes.use("/auth", authLimiter, authRoutes);
 
 apiRoutes.use("/parse", authMiddleware, parseRoutes);
 apiRoutes.use("/docxparse", authMiddleware, docxParseRoutes);

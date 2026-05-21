@@ -8,6 +8,7 @@ import { logger } from "../config/logger.config";
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
+
 function sanitizeFolder(input?: string) {
   if (!input) return "";
   const clean = input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
@@ -65,9 +66,9 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
     });
   } catch (e) {
     if (e instanceof Error) {
-      console.error("Presign upload error:", e.message, e.stack);
+      logger.error("Presign upload error", { message: e.message, stack: e.stack });
     } else {
-      console.error("Presign upload error:", e);
+      logger.error("Presign upload error", { error: e });
     }
     return res.status(500).json({ error: "Failed to create presigned URL" });
   }
@@ -92,9 +93,14 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    if (upload?.userId !== user.userId) {
-      return res.status(404).json({ error: "User mismatch" });
+    if (!upload) {
+      return res.status(404).json({ error: "Upload not found" });
     }
+
+    if (upload.userId !== user.userId) {
+      return res.status(403).json({ error: "User mismatch" });
+    }
+
     const { bucket, key } = parsed.data;
     const meta = await headObject(bucket ? { key, bucket } : { key });
 
@@ -180,7 +186,7 @@ export async function getUpload(req: AuthenticatedRequest, res: Response) {
   }
   try {
     const upload = await prisma.upload.findFirst({
-      where: { uploadId: uploadId, userId: user.userId },
+      where: { uploadId, userId: user.userId },
       include: { 
         parseResult: true, 
         analyses: {
@@ -191,10 +197,6 @@ export async function getUpload(req: AuthenticatedRequest, res: Response) {
 
     if (!upload) {
       return res.status(404).json({ error: "Upload not found" });
-    }
-
-    if (upload.userId !== user.userId) {
-      return res.status(403).json({ error: "User mismatch" });
     }
 
     return res.status(200).json({ upload });
@@ -221,10 +223,6 @@ export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
 
     if (!upload) {
       return res.status(404).json({ error: "Upload not found" });
-    }
-
-    if (upload.userId !== user.userId) {
-      return res.status(403).json({ error: "User mismatch" });
     }
 
     const storageErrors: string[] = [];

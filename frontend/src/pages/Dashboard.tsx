@@ -75,8 +75,11 @@ export function Dashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setError("Only PDF files are allowed");
+    if (
+      file.type !== "application/pdf" &&
+      file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      setError("Only PDF and DOCX files are allowed");
       return;
     }
 
@@ -119,7 +122,11 @@ export function Dashboard() {
       return;
     }
 
-    await uploadService.parse(uploadId).catch(() => {});
+    if (file.type === "application/pdf") {
+      await uploadService.parse(uploadId).catch(() => {});
+    } else {
+      await uploadService.parseDocx(uploadId).catch(() => {});
+    }
     await fetchUploads();
 
     setUploading(false);
@@ -204,7 +211,7 @@ export function Dashboard() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={handleFileUpload}
             disabled={uploading}
             className="hidden"

@@ -7,8 +7,6 @@ const ALLOWED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-const PDF_SIGNATURES = [Buffer.from([0x25, 0x50, 0x44, 0x46])];
-
 export const presignSchema = z.object({
   filename: z
     .string()
@@ -44,11 +42,3 @@ export const listUploadSchema = z.object({
 export type PresignUploadInput = z.infer<typeof presignSchema>;
 export type ConfirmUploadInput = z.infer<typeof confirmSchema>;
 export type ListUploadInput = z.infer<typeof listUploadSchema>;
-
-export function isPDFBuffer(buffer: Buffer): boolean {
-  if (buffer.length < 4) return false;
-
-  return PDF_SIGNATURES.some((signature) =>
-    buffer.subarray(0, signature.length).equals(signature),
-  );
-}

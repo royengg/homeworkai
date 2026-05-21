@@ -43,7 +43,7 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
     const newAnalysis = await prisma.analysisResult.create({
       data: {
         uploadId: upload.uploadId,
-        output: null as any,
+        output: {} as any,
         status: "queued",
       },
     });
@@ -95,6 +95,14 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
       },
     });
 
+    if (!upload) {
+      return res.status(404).json({ message: "Upload not found", payload: "" });
+    }
+
+    if (upload.userId !== req.user?.userId) {
+      return res.status(403).json({ message: "User mismatch", payload: "" });
+    }
+
     const analysis = await prisma.analysisResult.findFirst({
       where: {
         uploadId: uploadID,
@@ -106,9 +114,7 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
         .status(404)
         .json({ message: "Analysis not found", payload: "" });
     }
-    if (upload?.userId !== req.user?.userId) {
-      return res.status(403).json({ message: "User mismatch", payload: "" });
-    }
+
     return res.status(200).json(analysis.output);
   } catch (error) {
     return res

@@ -14,8 +14,8 @@ export const config = {
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"), 
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "100"),
   
-  maxFileSizeMB: parseInt(process.env.MAX_FILE_SIZE_MB || "10"),
-  maxFileSizeBytes: parseInt(process.env.MAX_FILE_SIZE_MB || "10") * 1024 * 1024,
+  maxFileSizeMB: parseInt(process.env.MAX_FILE_SIZE_MB || "20"),
+  maxFileSizeBytes: parseInt(process.env.MAX_FILE_SIZE_MB || "20") * 1024 * 1024,
   
   logLevel: process.env.LOG_LEVEL || "info",
   logFilePath: process.env.LOG_FILE_PATH || "./logs",
