@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { api, handleApiError } from "@/lib/api";
+import { uploadService } from "@/services/upload.service";
 import type { Upload } from "@/lib/types";
 import {
   Trash2,
@@ -47,31 +47,32 @@ export function Archive() {
   }, []);
 
   const fetchUploads = async (cursor?: string | null) => {
-    try {
-      if (cursor) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
+    if (cursor) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
 
-      const query = cursor ? `?cursor=${cursor}&limit=12` : `?limit=12`;
-      const response = await api.get<{
-        items: Upload[];
-        nextCursor: string | null;
-      }>(`/upload/list${query}`);
+    const { data, error } = await uploadService.list(cursor, 12);
 
-      if (cursor) {
-        setUploads((prev) => [...prev, ...response.data.items]);
-      } else {
-        setUploads(response.data.items);
-      }
-      setNextCursor(response.data.nextCursor);
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
       setLoadingMore(false);
+      return;
     }
+
+    if (data) {
+      if (cursor) {
+        setUploads((prev) => [...prev, ...data.items]);
+      } else {
+        setUploads(data.items);
+      }
+      setNextCursor(data.nextCursor);
+    }
+
+    setLoading(false);
+    setLoadingMore(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,48 +93,55 @@ export function Archive() {
     setUploading(true);
     setError("");
 
-    try {
-      const presignResponse = await api.post("/upload/presign", {
-        filename: file.name,
-        contentType: file.type,
-        fileSize: file.size,
-      });
+    const presignResult = await uploadService.presign({
+      filename: file.name,
+      contentType: file.type,
+      fileSize: file.size,
+    });
 
-      const { url, uploadId, bucket, key } = presignResponse.data;
-
-      await fetch(url, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
-
-      await api.post("/upload/confirm", {
-        bucket,
-        key,
-      });
-
-      await api.post(`/parse/${uploadId}`).catch(console.error);
-      await fetchUploads();
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
+    if (presignResult.error) {
+      setError(presignResult.error);
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
+
+    const { url, uploadId, bucket, key } = presignResult.data!;
+
+    const uploadResult = await uploadService.uploadToS3(url, file);
+
+    if (uploadResult.error) {
+      setError(uploadResult.error);
+      setUploading(false);
+      return;
+    }
+
+    const confirmResult = await uploadService.confirm({ bucket, key });
+
+    if (confirmResult.error) {
+      setError(confirmResult.error);
+      setUploading(false);
+      return;
+    }
+
+    await uploadService.parse(uploadId).catch(() => {});
+    await fetchUploads();
+
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDelete = async (e: React.MouseEvent, uploadId: string) => {
     e.stopPropagation();
     if (!confirm("Permanently delete this research material?")) return;
 
-    try {
-      await api.delete(`/upload/${uploadId}/delete`);
-      setUploads(uploads.filter((u) => u.uploadId !== uploadId));
-    } catch (err) {
-      setError(handleApiError(err));
+    const { error } = await uploadService.delete(uploadId);
+
+    if (error) {
+      setError(error);
+      return;
     }
+
+    setUploads(uploads.filter((u) => u.uploadId !== uploadId));
   };
 
   const getStatusBadge = (status: string) => {

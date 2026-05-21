@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../lib/api';
-import type { User, AuthResponse, LoginCredentials, RegisterData } from '../lib/types';
+import { authService } from '@/services/auth.service';
+import type { User, LoginCredentials, RegisterData } from '../lib/types';
 
 interface AuthContextType {
   user: User | null;
@@ -32,21 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
-    const { token, user } = response.data;
+    const { data, error } = await authService.login(credentials);
     
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    setUser(user);
+    if (error || !data) {
+      throw new Error(error || "Login failed");
+    }
+    
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    setUser(data.user);
   };
 
   const register = async (data: RegisterData) => {
-    const response = await api.post<AuthResponse>('/auth/register', data);
-    const { token, user } = response.data;
+    const { data: response, error } = await authService.register(data);
     
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    setUser(user);
+    if (error || !response) {
+      throw new Error(error || "Registration failed");
+    }
+    
+    localStorage.setItem('token', response.token);
+    localStorage.setItem('user', JSON.stringify(response.user));
+    setUser(response.user);
   };
 
   const logout = () => {

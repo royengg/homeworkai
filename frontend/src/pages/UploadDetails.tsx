@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { api, handleApiError } from "@/lib/api";
+import { uploadService } from "@/services/upload.service";
+import { analysisService } from "@/services/analysis.service";
 import type { Upload, AnalysisOutput } from "@/lib/types";
 import {
   ArrowLeft,
@@ -35,7 +36,7 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
             variant="outline"
             className="px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-bold text-primary border-primary/20 bg-primary/5"
           >
-            Synthesis Report
+            Final Report
           </Badge>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-[1.1]">
             {assignment.title}
@@ -87,7 +88,6 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
                   <div className="mt-12 p-8 glass-card rounded-3xl border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-6 flex items-center gap-2">
                       <BookOpenCheck className="h-3.5 w-3.5" /> Source Material
-                      Synthesis
                     </h4>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {section.citations.map((c, i: number) => (
@@ -224,14 +224,17 @@ export function UploadDetails() {
   }, [uploadId, clearPolling]);
 
   const fetchUploadDetails = async () => {
-    try {
-      const response = await api.get<{ upload: Upload }>(`/upload/${uploadId}`);
-      setUpload(response.data.upload);
-    } catch (err) {
-      setApiError(handleApiError(err));
-    } finally {
-      setLoading(false);
+    if (!uploadId) return;
+
+    const { data, error } = await uploadService.get(uploadId);
+
+    if (error) {
+      setApiError(error);
+    } else if (data) {
+      setUpload(data.upload);
     }
+
+    setLoading(false);
   };
 
   const handleAnalyze = async () => {
@@ -239,50 +242,58 @@ export function UploadDetails() {
     setAnalyzing(true);
     setApiError("");
 
-    try {
-      await api.post(`/analyze/${uploadId}`);
-      fetchUploadDetails();
+    const { error } = await analysisService.run(uploadId);
 
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const res = await api.get<{ upload: Upload }>(`/upload/${uploadId}`);
-          const currentAnalysis = res.data.upload.analyses?.[0];
-          const status = currentAnalysis?.status;
-
-          if (status === "completed" || status === "failed") {
-            clearPolling();
-            setUpload(res.data.upload);
-            setAnalyzing(false);
-          } else if (status === "running") {
-            setUpload(res.data.upload);
-          }
-        } catch (err) {
-          clearPolling();
-          setApiError(handleApiError(err));
-          setAnalyzing(false);
-        }
-      }, 3000);
-    } catch (err) {
-      setApiError(handleApiError(err));
+    if (error) {
+      setApiError(error);
       setAnalyzing(false);
+      return;
     }
+
+    fetchUploadDetails();
+
+    pollingIntervalRef.current = setInterval(async () => {
+      const { data, error: pollError } = await uploadService.get(uploadId);
+
+      if (pollError) {
+        clearPolling();
+        setApiError(pollError);
+        setAnalyzing(false);
+        return;
+      }
+
+      if (data) {
+        const currentAnalysis = data.upload.analyses?.[0];
+        const status = currentAnalysis?.status;
+
+        if (status === "completed" || status === "failed") {
+          clearPolling();
+          setUpload(data.upload);
+          setAnalyzing(false);
+        } else if (status === "running") {
+          setUpload(data.upload);
+        }
+      }
+    }, 3000);
   };
 
   const handleDownload = async () => {
-    if (!analysis?.id) return;
+    if (!uploadId || !analysis?.id) return;
     setDownloading(true);
     setApiError("");
 
-    try {
-      const response = await api.get<{ url: string }>(
-        `/upload/${uploadId}/analyses/${analysis.id}/download`,
-      );
-      window.open(response.data.url, "_blank");
-    } catch (err) {
-      setApiError(handleApiError(err));
-    } finally {
-      setDownloading(false);
+    const { data, error } = await analysisService.getDownloadUrl(
+      uploadId,
+      analysis.id,
+    );
+
+    if (error) {
+      setApiError(error);
+    } else if (data) {
+      window.open(data.url, "_blank");
     }
+
+    setDownloading(false);
   };
 
   if (loading) {
@@ -385,7 +396,7 @@ export function UploadDetails() {
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              Export Synthesis
+              Export Solution
             </Button>
           )}
           {/* {(!analysis || analysis.status === "failed") && (
@@ -446,7 +457,7 @@ export function UploadDetails() {
               </div>
               {analysis?.status === "completed" && (
                 <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-2">
-                  <CheckCircle2 className="h-3 w-3" /> Synthesis Optimized
+                  <CheckCircle2 className="h-3 w-3" /> Solution Generated
                 </div>
               )}
             </div>
@@ -481,10 +492,10 @@ export function UploadDetails() {
                   </div>
                   <div className="text-center space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">
-                      Synthesizing Neural Threads
+                      Crafting your solution
                     </p>
                     <h4 className="text-xl font-bold italic text-zinc-500">
-                      Compiling Report Layer...
+                      Compiling each sections...
                     </h4>
                   </div>
                 </div>
