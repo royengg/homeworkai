@@ -9,7 +9,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  FileUp,
   Layers,
   FileText,
   Clock,
@@ -198,14 +197,8 @@ export function Archive() {
   return (
     <div className="space-y-12 text-[#1c1b19] dark:text-[#f7f3ee]">
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] animate-pulse shadow-[0_0_10px_rgba(28,27,25,0.5)]" />
-            <span className="text-[10px] font-mono-alt uppercase tracking-[0.3em] text-[#3b3a37] dark:text-[#b9b3aa]">
-              Full Archive
-            </span>
-          </div>
-          <h1 className="text-5xl font-black tracking-tight">Archive</h1>
+        <div className="space-y-1.5">
+          <h1 className="text-5xl font-semibold tracking-tight text-balance">Archive</h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
             Every upload and generated solution.
           </p>

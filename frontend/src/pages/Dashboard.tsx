@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FileUp,
+  ChevronDown,
   Layers,
   FileText,
   Clock,
@@ -40,6 +41,9 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const [textImportOpen, setTextImportOpen] = useState(false);
+  const [textImport, setTextImport] = useState("");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -148,6 +152,16 @@ export function Dashboard() {
     setUploads(uploads.filter((u) => u.uploadId !== uploadId));
   };
 
+  const openFilePicker = () => {
+    setImportMenuOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const openTextImport = () => {
+    setImportMenuOpen(false);
+    setTextImportOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "processing":
@@ -195,20 +209,14 @@ export function Dashboard() {
     <div className="space-y-12 text-[#1c1b19] dark:text-[#f7f3ee]">
       {/* Dynamic Workspace Header */}
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] animate-pulse shadow-[0_0_10px_rgba(28,27,25,0.5)]" />
-            <span className="text-[10px] font-mono-alt uppercase tracking-[0.3em] text-[#3b3a37] dark:text-[#b9b3aa]">
-              Recent Uploads
-            </span>
-          </div>
-          <h1 className="text-5xl font-black tracking-tight">Dashboard</h1>
+        <div className="space-y-1.5">
+          <h1 className="text-5xl font-semibold tracking-tight text-balance">Dashboard</h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
             Your most recent uploads.
           </p>
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="relative flex-shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -218,9 +226,9 @@ export function Dashboard() {
             className="hidden"
           />
           <Button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setImportMenuOpen((open) => !open)}
             disabled={uploading}
-            className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] text-[#f7f3ee] dark:text-[#1c1b19] hover:scale-[0.98] transition-transform shadow-warm font-bold text-sm tracking-tight flex items-center gap-3"
+            className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#e7e5e4] text-[#f7f3ee] dark:text-[#1f1f1f] hover:scale-[0.98] transition-transform shadow-warm font-bold text-sm tracking-tight flex items-center gap-3"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -228,9 +236,61 @@ export function Dashboard() {
               <FileUp className="h-4 w-4" />
             )}
             <span>{uploading ? "Uploading..." : "Import Material"}</span>
+            <ChevronDown className={cn("h-4 w-4 transition-transform", importMenuOpen && "rotate-180")} />
           </Button>
+          {importMenuOpen && (
+            <div className="absolute right-0 top-16 z-30 w-56 overflow-hidden rounded-2xl border border-[#d8d3cc] dark:border-[#3a3a3a] bg-white dark:bg-[#232323] p-2 shadow-premium">
+              <button
+                type="button"
+                onClick={openFilePicker}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[#1c1b19] transition-colors hover:bg-[#f3eee8] dark:text-[#f4f1ed] dark:hover:bg-[#303030]"
+              >
+                <FileUp className="h-4 w-4 text-[#706a62] dark:text-[#b9b3aa]" />
+                File upload
+              </button>
+              <button
+                type="button"
+                onClick={openTextImport}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[#1c1b19] transition-colors hover:bg-[#f3eee8] dark:text-[#f4f1ed] dark:hover:bg-[#303030]"
+              >
+                <FileText className="h-4 w-4 text-[#706a62] dark:text-[#b9b3aa]" />
+                Text input
+              </button>
+            </div>
+          )}
         </div>
       </section>
+
+      {textImportOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-[#d8d3cc] bg-white/80 p-5 shadow-soft dark:border-[#3a3a3a] dark:bg-[#222222]"
+        >
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-semibold text-[#1c1b19] dark:text-[#f4f1ed]">
+              Paste material
+            </h2>
+            <button
+              type="button"
+              onClick={() => setTextImportOpen(false)}
+              className="text-xs font-semibold text-[#706a62] hover:text-[#1c1b19] dark:text-[#b9b3aa] dark:hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          <textarea
+            value={textImport}
+            onChange={(event) => setTextImport(event.target.value)}
+            placeholder="Paste assignment text, notes, or source material here."
+            className="min-h-40 w-full resize-y rounded-2xl border border-[#d8d3cc] bg-[#fbfaf8] p-4 text-sm leading-6 text-[#1c1b19] outline-none transition-colors placeholder:text-[#8b847a] focus:border-[#1c1b19] dark:border-[#3a3a3a] dark:bg-[#2a2a2a] dark:text-[#f4f1ed] dark:placeholder:text-[#9a948c] dark:focus:border-[#d6d3d1]"
+          />
+          <div className="mt-3 flex items-center justify-between text-[11px] font-mono-alt uppercase tracking-widest text-[#706a62] dark:text-[#b9b3aa]">
+            <span>{textImport.trim().length} chars</span>
+            <span>Local draft only</span>
+          </div>
+        </motion.div>
+      )}
 
       {error && (
         <motion.div

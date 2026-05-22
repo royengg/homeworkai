@@ -18,7 +18,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        space: ["Space Grotesk", "sans-serif"],
+        sans: ["Geist Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+        space: ["Geist Sans", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       backgroundImage: {
         "accent-gradient": "linear-gradient(to right, #f97316, #fbbf24)",
