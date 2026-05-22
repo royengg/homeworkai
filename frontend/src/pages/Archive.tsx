@@ -81,7 +81,8 @@ export function Archive() {
 
     if (
       file.type !== "application/pdf" &&
-      file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      file.type !==
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
       setError("Only PDF and DOCX files are allowed");
       return;
@@ -206,7 +207,7 @@ export function Archive() {
           </div>
           <h1 className="text-5xl font-black tracking-tight">Archive</h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
-            Every upload and generated solution, with pagination.
+            Every upload and generated solution.
           </p>
         </div>
 
@@ -219,7 +220,7 @@ export function Archive() {
             disabled={uploading}
             className="hidden"
           />
-          <Button
+          {/* <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#f7f3ee] text-[#f7f3ee] dark:text-[#1c1b19] hover:scale-[0.98] transition-transform shadow-warm font-bold text-sm tracking-tight flex items-center gap-3"
@@ -230,7 +231,7 @@ export function Archive() {
               <FileUp className="h-4 w-4" />
             )}
             <span>{uploading ? "Uploading..." : "Import Material"}</span>
-          </Button>
+          </Button> */}
         </div>
       </section>
 
@@ -256,7 +257,7 @@ export function Archive() {
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-[#3b3a37] dark:text-[#b9b3aa]" />
             <h3 className="text-xs font-mono-alt uppercase tracking-[0.2em] text-[#3b3a37] dark:text-[#b9b3aa]">
-              Source Library
+              Past Analysis
             </h3>
           </div>
           <span className="text-[10px] font-mono-alt bg-white/70 dark:bg-[#121212] px-2 py-0.5 rounded border border-[#1c1b19] dark:border-[#2a2a2a] text-[#3b3a37] dark:text-[#b9b3aa]">
@@ -338,7 +339,7 @@ export function Archive() {
                   <div className="flex items-center gap-2">
                     {upload.analyses && upload.analyses.length > 0 ? (
                       <div className="text-[10px] font-mono-alt text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Synthesis Ready
+                        <CheckCircle2 className="h-3 w-3" /> Solution Ready
                       </div>
                     ) : (
                       <div className="text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-widest">

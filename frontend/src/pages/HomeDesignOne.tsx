@@ -307,10 +307,10 @@ export function HomeDesignOne() {
                 Start free
               </Link>
               <Link
-                to="/login"
+                to="/register"
                 className="px-6 py-3 border border-[#1c1b19] rounded-full text-sm font-mono-alt"
               >
-                Talk to sales
+                Register
               </Link>
             </div>
           </div>

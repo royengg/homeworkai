@@ -1,11 +1,16 @@
 import { api } from "@/lib/api";
 import { wrap, type ServiceResponse } from "./service-utils";
 
+export type AnalysisMode = "homework" | "assignment";
+
 export const analysisService = {
-  run: async (uploadId: string): Promise<ServiceResponse<{ message: string; payload: { analysisId: string } }>> => {
+  run: async (
+    uploadId: string,
+    mode: AnalysisMode = "homework",
+  ): Promise<ServiceResponse<{ message: string; payload: { analysisId: string } }>> => {
     return wrap(
       api
-        .post<{ message: string; payload: { analysisId: string } }>(`/analyze/${uploadId}`)
+        .post<{ message: string; payload: { analysisId: string } }>(`/analyze/${uploadId}`, { mode })
         .then((r) => r.data),
     );
   },

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { uploadService } from "@/services/upload.service";
-import { analysisService } from "@/services/analysis.service";
+import { analysisService, type AnalysisMode } from "@/services/analysis.service";
 import type { Upload, AnalysisOutput } from "@/lib/types";
 import {
   ArrowLeft,
@@ -203,6 +203,7 @@ export function UploadDetails() {
   const [analyzing, setAnalyzing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [mode, setMode] = useState<AnalysisMode>("homework");
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
@@ -242,7 +243,7 @@ export function UploadDetails() {
     setAnalyzing(true);
     setApiError("");
 
-    const { error } = await analysisService.run(uploadId);
+    const { error } = await analysisService.run(uploadId, mode);
 
     if (error) {
       setApiError(error);
@@ -374,7 +375,7 @@ export function UploadDetails() {
                 <Calendar className="h-3.5 w-3.5" />{" "}
                 {new Date(upload.createdAt).toLocaleDateString()}
               </span>
-              <span className="opacity-20">•</span>
+              <span className="opacity-20">â€¢</span>
               <span className="flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5" />{" "}
                 {upload.size ? (upload.size / 1024 / 1024).toFixed(2) : "0"} MB
@@ -475,6 +476,21 @@ export function UploadDetails() {
                     <p className="text-zinc-400 text-sm font-medium max-w-[300px] leading-relaxed mx-auto italic">
                       Your output will be shown here.
                     </p>
+                  </div>
+                  {/* Mode selector */}
+                  <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                    <button
+                      onClick={() => setMode("homework")}
+                      className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${mode === "homework" ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                    >
+                      Problem Set
+                    </button>
+                    <button
+                      onClick={() => setMode("assignment")}
+                      className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${mode === "assignment" ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+                    >
+                      Essay Brief
+                    </button>
                   </div>
                   <Button
                     onClick={handleAnalyze}

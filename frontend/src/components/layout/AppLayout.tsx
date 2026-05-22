@@ -92,9 +92,9 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
         
         <nav className="flex-1 px-3 space-y-1 mt-6">
-          <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 flex items-center justify-between text-[#3b3a37] dark:text-[#9b948a]">
+          {/* <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 flex items-center justify-between text-[#3b3a37] dark:text-[#9b948a]">
             Navigation
-          </div>
+          </div> */}
           {navItems.map((item) => (
             <NavItem 
               key={item.to}
@@ -107,7 +107,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
           
           <Separator className="my-6 opacity-50 mx-3" />
           
-          <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 text-[#3b3a37] dark:text-[#9b948a]">Systems</div>
+          {/* <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 text-[#3b3a37] dark:text-[#9b948a]">Systems</div> */}
         </nav>
 
         <div className="p-4 border-t border-[#1c1b19] dark:border-[#262626]">

@@ -1,8 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "backend/Dockerfile"
-
-[deploy]
-startCommand = "pm2-runtime ecosystem.config.js"
-healthcheckPath = "/health"
-healthcheckTimeout = 30

@@ -13,7 +13,6 @@ import { corsOptions } from "./config/cors.config";
 import {
   apiLimiter,
   authLimiter,
-  uploadLimiter,
   analyzeLimiter,
 } from "./middleware/ratelimit.middleware";
 import { loggingMiddleware } from "./middleware/logging.middleware";
@@ -23,7 +22,6 @@ import {
 } from "./middleware/error.middleware";
 import { logger } from "./config/logger.config";
 import { config } from "./config/app.config";
-
 
 const PORT = config.port;
 

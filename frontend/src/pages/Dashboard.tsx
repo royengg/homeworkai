@@ -77,7 +77,8 @@ export function Dashboard() {
 
     if (
       file.type !== "application/pdf" &&
-      file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      file.type !==
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
       setError("Only PDF and DOCX files are allowed");
       return;
@@ -203,7 +204,7 @@ export function Dashboard() {
           </div>
           <h1 className="text-5xl font-black tracking-tight">Dashboard</h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
-            Your most recent uploads and the latest processed solutions.
+            Your most recent uploads.
           </p>
         </div>
 
@@ -336,7 +337,7 @@ export function Dashboard() {
                   <div className="flex items-center gap-2">
                     {upload.analyses && upload.analyses.length > 0 ? (
                       <div className="text-[10px] font-mono-alt text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Synthesis Ready
+                        <CheckCircle2 className="h-3 w-3" /> Solution Ready
                       </div>
                     ) : (
                       <div className="text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-widest">

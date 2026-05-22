@@ -18,7 +18,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
   const parsedJob = jobSchema.safeParse(job.data);
   if (!parsedJob.success) throw new Error("Invalid job data");
 
-  const { analysisId } = parsedJob.data;
+  const { analysisId, mode } = parsedJob.data;
 
   try {
     let analysis = await prisma.analysisResult.findUnique({
@@ -38,10 +38,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
     const pdfText = analysis.upload.parseResult.text;
     const input = makeLLMInputFromText(pdfText);
 
-    const isAssignment =
-      pdfText.length > 5000 ||
-      pdfText.toLowerCase().includes("assignment") ||
-      pdfText.toLowerCase().includes("syllabus");
+    const isAssignment = mode === "assignment";
 
     if (isAssignment) {
       logger.info("Assignment Solver Mode", { jobId: job.id });

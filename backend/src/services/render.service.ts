@@ -1,6 +1,5 @@
 import pdfkit from "pdfkit";
 import { PassThrough } from "stream";
-import { AnalysisOutput } from "../types/analysis-output.types";
 
 function sanitizeForPdf(text: string): string {
   if (!text) return "";

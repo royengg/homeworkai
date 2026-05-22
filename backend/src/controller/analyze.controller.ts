@@ -48,11 +48,14 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
       },
     });
 
+    const mode: "homework" | "assignment" = req.body?.mode === "assignment" ? "assignment" : "homework";
+
     const id = newAnalysis.id;
     const analysisUploadId: string = newAnalysis.uploadId;
     const jobData = {
       analysisId: id,
       uploadId: analysisUploadId,
+      mode,
     };
 
     const enqueued = await enqueueAnalysisJob("analyzeJobs", jobData);
