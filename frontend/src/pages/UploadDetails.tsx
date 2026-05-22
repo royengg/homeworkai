@@ -3,7 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { uploadService } from "@/services/upload.service";
-import { analysisService, type AnalysisMode } from "@/services/analysis.service";
+import {
+  analysisService,
+  type AnalysisMode,
+} from "@/services/analysis.service";
 import type { Upload, AnalysisOutput } from "@/lib/types";
 import {
   ArrowLeft,
@@ -135,7 +138,7 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-400">
-                    Problem Synthesis
+                    Problem Analysis
                   </span>
                   <h3 className="text-2xl font-bold tracking-tight text-foreground">
                     {q.question_text}
@@ -436,7 +439,9 @@ export function UploadDetails() {
               <span className="hidden rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[10px] font-mono-alt uppercase tracking-widest text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 sm:inline-flex">
                 Source text
               </span>
-              <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform dark:text-zinc-300 ${sourceOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`h-4 w-4 text-zinc-500 transition-transform dark:text-zinc-300 ${sourceOpen ? "rotate-180" : ""}`}
+              />
             </div>
           </button>
 
@@ -504,17 +509,17 @@ export function UploadDetails() {
               <div className="relative min-h-[460px] overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900 md:p-8">
                 {analyzing ? (
                   <div className="flex min-h-[360px] flex-col items-center justify-center space-y-6">
-                  <div className="relative">
-                    <RefreshCw className="h-12 w-12 text-zinc-400 dark:text-zinc-500 animate-spin relative" />
-                  </div>
-                  <div className="text-center space-y-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-zinc-400">
-                      Crafting your solution
-                    </p>
-                    <h4 className="text-xl font-semibold text-zinc-600 dark:text-zinc-300">
-                      Compiling each section...
-                    </h4>
-                  </div>
+                    <div className="relative">
+                      <RefreshCw className="h-12 w-12 text-zinc-400 dark:text-zinc-500 animate-spin relative" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-zinc-400">
+                        Crafting your solution
+                      </p>
+                      <h4 className="text-xl font-semibold text-zinc-600 dark:text-zinc-300">
+                        Compiling each section...
+                      </h4>
+                    </div>
                   </div>
                 ) : (
                   <div className="relative z-10 transition-all duration-700">

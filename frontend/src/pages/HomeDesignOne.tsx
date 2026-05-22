@@ -76,7 +76,7 @@ export function HomeDesignOne() {
             <div className="min-h-[320px] border border-[#1c1b19] bg-white/75 p-8 rounded-3xl shadow-[0_22px_56px_-38px_rgba(28,27,25,0.45)] flex flex-col">
               <div className="flex items-center justify-between text-xs font-mono-alt">
                 <span>ANALYSIS LOG</span>
-                <span>v2.5</span>
+                <span>v1.0</span>
               </div>
               <div className="mt-8 space-y-4">
                 <div className="h-2 bg-[#1c1b19] w-3/4"></div>
