@@ -72,18 +72,19 @@ export function HomeDesignOne() {
           </div>
 
           <div className="relative">
-            <div className="absolute -top-6 -right-6 w-40 h-40 border border-[#1c1b19] rounded-full"></div>
-            <div className="border border-[#1c1b19] bg-white/70 p-6 rounded-3xl shadow-warm">
+            <div className="absolute -top-6 -right-6 w-40 h-40 border border-[#1c1b19]/50 rounded-full"></div>
+            <div className="min-h-[320px] border border-[#1c1b19] bg-white/75 p-8 rounded-3xl shadow-[0_22px_56px_-38px_rgba(28,27,25,0.45)] flex flex-col">
               <div className="flex items-center justify-between text-xs font-mono-alt">
                 <span>ANALYSIS LOG</span>
                 <span>v2.5</span>
               </div>
-              <div className="mt-6 space-y-4">
+              <div className="mt-8 space-y-4">
                 <div className="h-2 bg-[#1c1b19] w-3/4"></div>
                 <div className="h-2 bg-[#1c1b19] w-5/6"></div>
                 <div className="h-2 bg-[#1c1b19] w-2/3"></div>
+                <div className="h-2 bg-[#1c1b19]/60 w-1/2"></div>
               </div>
-              <div className="mt-8 border-t border-[#1c1b19] pt-4 text-sm font-sans-alt">
+              <div className="mt-auto border-t border-[#1c1b19] pt-5 text-sm font-sans-alt leading-6">
                 "We highlight the reasoning, not just the answer."
               </div>
             </div>

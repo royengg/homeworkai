@@ -285,9 +285,15 @@ export function Dashboard() {
             placeholder="Paste assignment text, notes, or source material here."
             className="min-h-40 w-full resize-y rounded-2xl border border-[#d8d3cc] bg-[#fbfaf8] p-4 text-sm leading-6 text-[#1c1b19] outline-none transition-colors placeholder:text-[#8b847a] focus:border-[#1c1b19] dark:border-[#3a3a3a] dark:bg-[#2a2a2a] dark:text-[#f4f1ed] dark:placeholder:text-[#9a948c] dark:focus:border-[#d6d3d1]"
           />
-          <div className="mt-3 flex items-center justify-between text-[11px] font-mono-alt uppercase tracking-widest text-[#706a62] dark:text-[#b9b3aa]">
+          <div className="mt-3 flex items-center justify-between gap-3 text-[11px] font-mono-alt uppercase tracking-widest text-[#706a62] dark:text-[#b9b3aa]">
             <span>{textImport.trim().length} chars</span>
-            <span>Local draft only</span>
+            <button
+              type="button"
+              className="min-h-9 rounded-full bg-[#1c1b19] px-4 text-[11px] font-semibold tracking-normal text-[#f7f3ee] transition-transform hover:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#e7e5e4] dark:text-[#1f1f1f]"
+              disabled={!textImport.trim()}
+            >
+              Submit
+            </button>
           </div>
         </motion.div>
       )}
@@ -360,7 +366,7 @@ export function Dashboard() {
                 className={cn(
                   "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
                   upload.status === "processed"
-                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:bg-white dark:hover:bg-[#161616] cursor-pointer shadow-soft hover:shadow-warm"
+                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out"
                     : "bg-white/40 dark:bg-[#0f0f0f] border-[#1c1b19] dark:border-[#2a2a2a] opacity-70",
                 )}
               >
@@ -409,7 +415,7 @@ export function Dashboard() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 rounded-lg text-[#3b3a37] dark:text-[#b9b3aa] hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto"
+                    className="h-7 w-7 rounded-lg text-[#3b3a37] opacity-60 transition-[opacity,transform,background-color,color] duration-200 ease-out hover:scale-105 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:text-[#b9b3aa] pointer-events-auto"
                     onClick={(e) => handleDelete(e, upload.uploadId)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />

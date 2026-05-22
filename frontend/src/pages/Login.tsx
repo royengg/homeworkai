@@ -54,7 +54,7 @@ export function Login() {
           </p>
         </div>
 
-        <div className="border border-[#1c1b19] dark:border-[#2a2a2a] rounded-3xl p-8 bg-white/80 dark:bg-[#121212] shadow-warm">
+        <div className="border border-[#1c1b19] dark:border-[#2a2a2a] rounded-3xl p-8 bg-white/85 dark:bg-[#1f1f1f] shadow-[0_18px_46px_-32px_rgba(28,27,25,0.32)]">
           <div className="flex items-center justify-between text-xs font-mono-alt">
             <span>ACCOUNT ACCESS</span>
             <BookOpen className="h-4 w-4" />

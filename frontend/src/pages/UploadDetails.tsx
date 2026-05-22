@@ -86,7 +86,7 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
 
                 {section.citations && section.citations.length > 0 && (
                   <div className="mt-12 p-8 glass-card rounded-3xl border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-6 flex items-center gap-2">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-6 flex items-center gap-2">
                       <BookOpenCheck className="h-3.5 w-3.5" /> Source Material
                     </h4>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -134,7 +134,7 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
                   {q.qid.replace(/Q/i, "")}
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-400">
                     Problem Synthesis
                   </span>
                   <h3 className="text-2xl font-bold tracking-tight text-foreground">
@@ -159,7 +159,7 @@ const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
 
                     {p.workings && (
                       <div className="space-y-6">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
                           <ChevronRight className="h-3 w-3 text-zinc-300" />{" "}
                           Derivation Path
                         </span>
@@ -302,7 +302,7 @@ export function UploadDetails() {
     return (
       <div className="flex flex-col items-center justify-center py-48 space-y-6">
         <Loader2 className="h-10 w-10 animate-spin text-zinc-300 dark:text-zinc-700" />
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-400">
           Synchronizing Synthesis
         </span>
       </div>
@@ -428,7 +428,7 @@ export function UploadDetails() {
           >
             <div className="flex items-center gap-2">
               <ScrollText className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-300" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 dark:text-zinc-300">
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600 dark:text-zinc-300">
                 Context Extraction
               </h3>
             </div>
@@ -467,7 +467,7 @@ export function UploadDetails() {
             <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 dark:text-zinc-300">
+                <h3 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600 dark:text-zinc-300">
                   Analysis Output
                 </h3>
               </div>
@@ -508,7 +508,7 @@ export function UploadDetails() {
                     <RefreshCw className="h-12 w-12 text-zinc-400 dark:text-zinc-500 animate-spin relative" />
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-zinc-400">
                       Crafting your solution
                     </p>
                     <h4 className="text-xl font-semibold text-zinc-600 dark:text-zinc-300">

@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Separator } from '@/components/ui/Separator';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -83,15 +82,15 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex w-64 flex-col border-r border-[#1c1b19] dark:border-[#262626] bg-white/70 dark:bg-[#0e0e0e] relative z-50">
         <div className="h-16 flex items-center px-6 border-b border-[#1c1b19] dark:border-[#262626]">
-          <Link to="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight group">
-            <div className="w-8 h-8 rounded-full border border-[#1c1b19] dark:border-[#2a2a2a] flex items-center justify-center text-[#1c1b19] dark:text-[#f7f3ee] transition-transform group-hover:scale-95">
+          <div className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+            <div className="w-8 h-8 rounded-full border border-[#1c1b19] dark:border-[#2a2a2a] flex items-center justify-center text-[#1c1b19] dark:text-[#f7f3ee]">
               <BookOpen className="h-4 w-4" />
             </div>
             <span className="font-bold">HomeworkAI</span>
-          </Link>
+          </div>
         </div>
         
-        <nav className="flex-1 px-3 space-y-1 mt-6">
+        <nav className="flex-1 px-3 space-y-1 mt-3">
           {/* <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 flex items-center justify-between text-[#3b3a37] dark:text-[#9b948a]">
             Navigation
           </div> */}
@@ -104,9 +103,6 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
               active={location.pathname === item.to}
             />
           ))}
-          
-          <Separator className="my-6 opacity-50 mx-3" />
-          
           {/* <div className="text-[10px] font-mono-alt uppercase tracking-[0.3em] px-3 mb-2 text-[#3b3a37] dark:text-[#9b948a]">Systems</div> */}
         </nav>
 
@@ -139,7 +135,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link to="/" className="font-bold text-sm tracking-tight">HomeworkAI</Link>
+          <span className="font-bold text-sm tracking-tight">HomeworkAI</span>
           <div className="h-8 w-8 rounded-full border border-[#1c1b19] dark:border-[#2a2a2a]" />
         </header>
 
