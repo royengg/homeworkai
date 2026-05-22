@@ -228,7 +228,7 @@ export function Dashboard() {
           <Button
             onClick={() => setImportMenuOpen((open) => !open)}
             disabled={uploading}
-            className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#e7e5e4] text-[#f7f3ee] dark:text-[#1f1f1f] hover:scale-[0.98] transition-transform shadow-warm font-bold text-sm tracking-tight flex items-center gap-3"
+            className="h-14 px-8 rounded-full bg-[#1c1b19] dark:bg-[#e7e5e4] text-[#f7f3ee] dark:text-[#1f1f1f] hover:scale-[0.98] transition-transform shadow-warm font-medium text-sm tracking-tight flex items-center gap-3"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

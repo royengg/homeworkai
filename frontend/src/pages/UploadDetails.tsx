@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -362,7 +362,7 @@ export function UploadDetails() {
         <div className="space-y-4">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
+            className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
           >
             <ArrowLeft className="h-3 w-3 group-hover:-translate-x-1 transition-transform" />{" "}
             Back to Dashboard
