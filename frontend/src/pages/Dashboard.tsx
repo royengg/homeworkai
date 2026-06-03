@@ -44,6 +44,7 @@ export function Dashboard() {
   const [importMenuOpen, setImportMenuOpen] = useState(false);
   const [textImportOpen, setTextImportOpen] = useState(false);
   const [textImport, setTextImport] = useState("");
+  const [pasting, setPasting] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -162,6 +163,30 @@ export function Dashboard() {
     setTextImportOpen(true);
   };
 
+  const handlePasteSubmit = async () => {
+    const trimmed = textImport.trim();
+    if (!trimmed) return;
+
+    setPasting(true);
+    setError("");
+
+    const { data, error } = await uploadService.paste(trimmed);
+
+    if (error) {
+      setError(error);
+      setPasting(false);
+      return;
+    }
+
+    if (data) {
+      setTextImport("");
+      setTextImportOpen(false);
+      navigate(`/upload/${data.uploadId}`);
+    }
+
+    setPasting(false);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "processing":
@@ -210,7 +235,9 @@ export function Dashboard() {
       {/* Dynamic Workspace Header */}
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
         <div className="space-y-1.5">
-          <h1 className="text-5xl font-semibold tracking-tight text-balance">Dashboard</h1>
+          <h1 className="text-5xl font-semibold tracking-tight text-balance">
+            Dashboard
+          </h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
             Your most recent uploads.
           </p>
@@ -236,7 +263,12 @@ export function Dashboard() {
               <FileUp className="h-4 w-4" />
             )}
             <span>{uploading ? "Uploading..." : "Import Material"}</span>
-            <ChevronDown className={cn("h-4 w-4 transition-transform", importMenuOpen && "rotate-180")} />
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                importMenuOpen && "rotate-180",
+              )}
+            />
           </Button>
           {importMenuOpen && (
             <div className="absolute right-0 top-16 z-30 w-56 overflow-hidden rounded-2xl border border-[#d8d3cc] dark:border-[#3a3a3a] bg-white dark:bg-[#232323] p-2 shadow-premium">
@@ -289,10 +321,11 @@ export function Dashboard() {
             <span>{textImport.trim().length} chars</span>
             <button
               type="button"
+              onClick={handlePasteSubmit}
               className="min-h-9 rounded-full bg-[#1c1b19] px-4 text-[11px] font-semibold tracking-normal text-[#f7f3ee] transition-transform hover:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#e7e5e4] dark:text-[#1f1f1f]"
-              disabled={!textImport.trim()}
+              disabled={!textImport.trim() || pasting}
             >
-              Submit
+              {pasting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </motion.div>
@@ -380,10 +413,12 @@ export function Dashboard() {
 
                   <div className="space-y-1">
                     <h4 className="font-bold text-sm leading-tight truncate pr-4">
-                      {upload.key
-                        .split("/")
-                        .pop()
-                        ?.replace(/_\d+\.pdf$/, ".pdf")}
+                      {upload.key.startsWith("paste_")
+                        ? "Pasted Material"
+                        : upload.key
+                            .split("/")
+                            .pop()
+                            ?.replace(/_\d+\.pdf$/, ".pdf")}
                     </h4>
                     <div className="flex items-center gap-2 text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-tight">
                       {new Date(upload.createdAt).toLocaleDateString(
@@ -407,7 +442,7 @@ export function Dashboard() {
                       </div>
                     ) : (
                       <div className="text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-widest">
-                        Inert Source
+                        Uploaded
                       </div>
                     )}
                   </div>

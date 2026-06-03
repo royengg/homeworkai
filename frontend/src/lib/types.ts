@@ -1,5 +1,5 @@
 export interface User {
-  userId: number;
+  userId: string;
   name: string;
   email: string;
 }
@@ -24,7 +24,7 @@ export type UploadStatus = 'uploading' | 'uploaded' | 'processing' | 'processed'
 
 export interface Upload {
   uploadId: string;
-  userId: number;
+  userId: string;
   bucket: string;
   key: string;
   size?: number;

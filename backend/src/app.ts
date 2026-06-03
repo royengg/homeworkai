@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.route";
 import analyzeRoutes from "./routes/analyze.route";
 import healthRoutes from "./routes/health.route";
 import docxParseRoutes from "./routes/docx.parse.route";
+import pasteRoutes from "./routes/paste.route";
 import { authMiddleware } from "./middleware/auth.middleware";
 
 import { corsOptions } from "./config/cors.config";
@@ -53,6 +54,7 @@ apiRoutes.use("/parse", authMiddleware, parseRoutes);
 apiRoutes.use("/docxparse", authMiddleware, docxParseRoutes);
 apiRoutes.use("/upload", authMiddleware, uploadRoutes);
 apiRoutes.use("/analyze", authMiddleware, analyzeLimiter, analyzeRoutes);
+apiRoutes.use("/paste", authMiddleware, pasteRoutes);
 
 app.use(errorMiddleware);
 

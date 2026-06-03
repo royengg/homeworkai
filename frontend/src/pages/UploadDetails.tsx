@@ -369,10 +369,12 @@ export function UploadDetails() {
           </button>
           <div className="space-y-0.5">
             <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 truncate max-w-2xl leading-tight text-balance">
-              {upload.key
-                .split("/")
-                .pop()
-                ?.replace(/_\d+\.pdf$/, ".pdf")}
+              {upload.key.startsWith("paste_")
+                ? "Pasted Material"
+                : upload.key
+                    .split("/")
+                    .pop()
+                    ?.replace(/_\d+\.pdf$/, ".pdf")}
             </h1>
             <div className="flex items-center gap-4 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-1">
               <span className="flex items-center gap-1.5">

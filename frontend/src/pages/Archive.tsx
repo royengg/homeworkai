@@ -198,7 +198,9 @@ export function Archive() {
     <div className="space-y-12 text-[#1c1b19] dark:text-[#f7f3ee]">
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-4">
         <div className="space-y-1.5">
-          <h1 className="text-5xl font-semibold tracking-tight text-balance">Archive</h1>
+          <h1 className="text-5xl font-semibold tracking-tight text-balance">
+            Archive
+          </h1>
           <p className="text-[#3b3a37] dark:text-[#b9b3aa] text-sm font-medium max-w-sm leading-relaxed">
             Every upload and generated solution.
           </p>
@@ -309,10 +311,12 @@ export function Archive() {
 
                   <div className="space-y-1">
                     <h4 className="font-bold text-sm leading-tight truncate pr-4">
-                      {upload.key
-                        .split("/")
-                        .pop()
-                        ?.replace(/_\d+\.pdf$/, ".pdf")}
+                      {upload.key.startsWith("paste_")
+                        ? "Pasted Material"
+                        : upload.key
+                            .split("/")
+                            .pop()
+                            ?.replace(/_\d+\.pdf$/, ".pdf")}
                     </h4>
                     <div className="flex items-center gap-2 text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-tight">
                       {new Date(upload.createdAt).toLocaleDateString(
@@ -336,7 +340,7 @@ export function Archive() {
                       </div>
                     ) : (
                       <div className="text-[10px] font-mono-alt text-[#3b3a37] dark:text-[#b9b3aa] uppercase tracking-widest">
-                        Inert Source
+                        Uploaded
                       </div>
                     )}
                   </div>

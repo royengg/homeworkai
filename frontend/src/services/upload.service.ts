@@ -62,6 +62,10 @@ export const uploadService = {
     return wrap(api.post(`/docxparse/${uploadId}`).then((r) => r.data));
   },
 
+  paste: async (text: string): Promise<ServiceResponse<{ uploadId: string }>> => {
+    return wrap(api.post<{ uploadId: string }>("/paste", { text }).then((r) => r.data));
+  },
+
   uploadToS3: async (
     url: string,
     file: File,

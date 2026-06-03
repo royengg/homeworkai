@@ -46,7 +46,7 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
 
     const newUpload = await prisma.upload.create({
       data: {
-        userId: req.user?.userId as number,
+        userId: req.user?.userId as string,
         key,
         bucket,
         status: "uploading",
