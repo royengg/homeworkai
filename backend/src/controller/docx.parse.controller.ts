@@ -113,6 +113,9 @@ export async function parseDocxController(
       });
       return res.json(docxText);
     }
+    return res.status(500).json({
+      error: "Failed to parse DOCX",
+    });
   } catch (e) {
     logger.error("Error in parseDocxController", {
       error: e instanceof Error ? e.message : "Unknown error",

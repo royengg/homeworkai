@@ -48,13 +48,14 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    const mode: "homework" | "assignment" = req.body?.mode === "assignment" ? "assignment" : "homework";
+    const mode: "homework" | "assignment" =
+      req.body?.mode === "assignment" ? "assignment" : "homework";
 
     const id = newAnalysis.id;
-    const analysisUploadId: string = newAnalysis.uploadId;
+
     const jobData = {
       analysisId: id,
-      uploadId: analysisUploadId,
+      uploadId: uploadId,
       mode,
     };
 
@@ -73,8 +74,8 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
 }
 
 export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
-  const uploadID = req.params.uploadId;
-  if (!uploadID) {
+  const uploadId = req.params.uploadId;
+  if (!uploadId) {
     return res
       .status(400)
       .json({ message: "uploadId is required", payload: "" });
@@ -94,7 +95,7 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
   try {
     const upload = await prisma.upload.findUnique({
       where: {
-        uploadId: uploadID,
+        uploadId: uploadId,
       },
     });
 
@@ -108,7 +109,7 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
 
     const analysis = await prisma.analysisResult.findFirst({
       where: {
-        uploadId: uploadID,
+        uploadId: uploadId,
         id: analysisId,
       },
     });
@@ -118,7 +119,9 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
         .json({ message: "Analysis not found", payload: "" });
     }
 
-    return res.status(200).json(analysis.output);
+    return res
+      .status(200)
+      .json({ message: "Analysis found", payload: analysis.output });
   } catch (error) {
     return res
       .status(500)

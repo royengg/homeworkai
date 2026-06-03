@@ -78,7 +78,7 @@ model AnalysisResult {
   prompt    String?
   model     String?
 
-  status    AnalysisStatus @default(completed)
+  status    AnalysisStatus @default(queued)
   error     String?
   
   output    Json

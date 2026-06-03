@@ -34,13 +34,13 @@ export async function login(req: Request, res: Response) {
     const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
       expiresIn: "24h",
     });
-    return res.json({ 
+    return res.json({
       token,
       user: {
         userId: user.userId,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
@@ -50,7 +50,7 @@ export async function login(req: Request, res: Response) {
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).send({ error: "Invalid credentials" });
+    return res.status(400).json({ error: "Invalid credentials" });
   }
   const { name, email, password } = parsed.data;
 
@@ -66,18 +66,18 @@ export async function register(req: Request, res: Response) {
     const user = await prisma.user.create({
       data: { name, email, password: hashedPassword },
     });
-    
+
     const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
       expiresIn: "24h",
     });
-    
+
     return res.status(201).json({
       token,
       user: {
         userId: user.userId,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });

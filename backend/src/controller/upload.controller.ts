@@ -1,6 +1,15 @@
 import { Response } from "express";
-import { presignSchema, confirmSchema, listUploadSchema } from "../schema/upload.schema";
-import { presignPut, headObject, deleteObject, deleteObjectsByPrefix } from "../services/storage.service";
+import {
+  presignSchema,
+  confirmSchema,
+  listUploadSchema,
+} from "../schema/upload.schema";
+import {
+  presignPut,
+  headObject,
+  deleteObject,
+  deleteObjectsByPrefix,
+} from "../services/storage.service";
 import { prisma } from "../db/prisma.db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { logger } from "../config/logger.config";
@@ -19,9 +28,9 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   const parsed = presignSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: "Invalid request body",
-      details: parsed.error.issues 
+      details: parsed.error.issues,
     });
   }
 
@@ -33,9 +42,11 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   const { filename, contentType, folder } = parsed.data;
   const timestamp = Date.now();
   const san = sanitizeFilename(filename);
-  const ext = san.lastIndexOf(".") !== -1 ? san.substring(san.lastIndexOf(".")) : "";
-  const name = san.lastIndexOf(".") !== -1 ? san.substring(0, san.lastIndexOf(".")) : san;
-  
+  const ext =
+    san.lastIndexOf(".") !== -1 ? san.substring(san.lastIndexOf(".")) : "";
+  const name =
+    san.lastIndexOf(".") !== -1 ? san.substring(0, san.lastIndexOf(".")) : san;
+
   const key = `${sanitizeFolder(folder)}${name}_${timestamp}${ext}`;
 
   try {
@@ -53,10 +64,6 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    if (!newUpload) {
-      return res.status(500).json({ error: "Failed to create presigned URL" });
-    }
-
     res.status(200).json({
       uploadId: newUpload.uploadId,
       url,
@@ -66,7 +73,10 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
     });
   } catch (e) {
     if (e instanceof Error) {
-      logger.error("Presign upload error", { message: e.message, stack: e.stack });
+      logger.error("Presign upload error", {
+        message: e.message,
+        stack: e.stack,
+      });
     } else {
       logger.error("Presign upload error", { error: e });
     }
@@ -118,10 +128,6 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    if (!updatedUpload) {
-      return res.status(500).json({ error: "Failed to confirm upload" });
-    }
-
     return res.status(200).json({
       bucket,
       key,
@@ -148,14 +154,14 @@ export async function listUpload(req: AuthenticatedRequest, res: Response) {
 
   const { cursor, limit = 10 } = parsed.data;
 
-  try {
+try {
     const listUploads = await prisma.upload.findMany({
       where: { userId: user.userId },
       take: limit + 1, // Fetch one extra to see if there's a next page
       ...(cursor ? { cursor: { uploadId: cursor } } : {}),
       orderBy: [
-        { createdAt: 'desc' },
-        { uploadId: 'desc' } // Stable sort
+        { createdAt: "desc" },
+        { uploadId: "desc" }, // Stable sort
       ],
       include: { analyses: true },
     });
@@ -166,9 +172,9 @@ export async function listUpload(req: AuthenticatedRequest, res: Response) {
       nextCursor = nextItem?.uploadId || null;
     }
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       items: listUploads,
-      nextCursor
+      nextCursor,
     });
   } catch (error) {
     return res.status(500).json({ error: "Failed to list uploads" });
@@ -187,11 +193,11 @@ export async function getUpload(req: AuthenticatedRequest, res: Response) {
   try {
     const upload = await prisma.upload.findFirst({
       where: { uploadId, userId: user.userId },
-      include: { 
-        parseResult: true, 
+      include: {
+        parseResult: true,
         analyses: {
-          orderBy: { createdAt: 'desc' }
-        } 
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -285,9 +291,10 @@ export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
 
     return res.status(200).json({
       message: "Upload deleted successfully",
-      storageCleanup: storageErrors.length > 0
-        ? { warnings: storageErrors }
-        : { status: "complete" },
+      storageCleanup:
+        storageErrors.length > 0
+          ? { warnings: storageErrors }
+          : { status: "complete" },
     });
   } catch (error) {
     logger.error("Failed to delete upload", {
