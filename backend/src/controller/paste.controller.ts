@@ -4,6 +4,7 @@ import { prisma } from "../db/prisma.db";
 import { storageBucket } from "../config/storage.config";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { logger } from "../config/logger.config";
+import { sanitizeTextInput } from "../utils/format.utils";
 
 export async function pasteText(req: AuthenticatedRequest, res: Response) {
   const parsed = pasteSchema.safeParse(req.body);
@@ -21,6 +22,11 @@ export async function pasteText(req: AuthenticatedRequest, res: Response) {
   }
 
   const { text } = parsed.data;
+  const sanitizedText = sanitizeTextInput(text);
+
+  if (!sanitizedText) {
+    return res.status(400).json({ error: "Text content is empty after sanitization" });
+  }
 
   try {
     const upload = await prisma.upload.create({
@@ -35,7 +41,7 @@ export async function pasteText(req: AuthenticatedRequest, res: Response) {
     await prisma.parseResult.create({
       data: {
         uploadId: upload.uploadId,
-        text,
+        text: sanitizedText,
         numPages: 1,
       },
     });
@@ -43,7 +49,7 @@ export async function pasteText(req: AuthenticatedRequest, res: Response) {
     logger.info("Paste upload created", {
       uploadId: upload.uploadId,
       userId: user.userId,
-      textLength: text.length,
+      textLength: sanitizedText.length,
     });
 
     return res.status(201).json({ uploadId: upload.uploadId });

@@ -4,11 +4,7 @@ import { loginSchema } from "../schema/auth.schema";
 import { registerSchema } from "../schema/auth.schema";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
-const JWT_SECRET = process.env.JWT_SECRET as string;
-if (!JWT_SECRET || JWT_SECRET === undefined || JWT_SECRET === "") {
-  throw new Error("JWT_SECRET not found");
-}
+import { config } from "../config/app.config";
 
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
@@ -24,14 +20,14 @@ export async function login(req: Request, res: Response) {
     });
 
     if (!user) {
-      return res.status(401).json({ error: "User not found" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid password" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
+    const token = jwt.sign({ userId: user.userId }, config.jwtSecret, {
       expiresIn: "24h",
     });
     return res.json({
@@ -67,7 +63,7 @@ export async function register(req: Request, res: Response) {
       data: { name, email, password: hashedPassword },
     });
 
-    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, {
+    const token = jwt.sign({ userId: user.userId }, config.jwtSecret, {
       expiresIn: "24h",
     });
 

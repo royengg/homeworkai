@@ -79,7 +79,7 @@ export async function renderAnalysis(req: AuthenticatedRequest, res: Response) {
       uploadId, 
       analysisId 
     });
-    return res.status(500).json({ message: "Failed to render analysis", error: error?.message });
+    return res.status(500).json({ message: "Failed to render analysis" });
   }
 }
 

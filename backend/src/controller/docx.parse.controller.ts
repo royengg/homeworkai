@@ -90,7 +90,7 @@ export async function parseDocxController(
           .json({ error: "Failed to parse DOCX: No text content found" });
       }
 
-      const updatedUpload = await prisma.upload.update({
+      await prisma.upload.update({
         where: {
           uploadId: uploadId,
         },
@@ -99,7 +99,7 @@ export async function parseDocxController(
         },
       });
 
-      const upsertedUpload = await prisma.parseResult.upsert({
+      await prisma.parseResult.upsert({
         where: {
           uploadId: uploadId,
         },

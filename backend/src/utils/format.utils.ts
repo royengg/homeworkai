@@ -55,3 +55,10 @@ export function makeLLMInputFromText(text: string, opts?: SpanOptions): string {
   const spans = buildSpansFromText(text, opts);
   return JSON.stringify({ text: spans });
 }
+
+export function sanitizeTextInput(text: string): string {
+  return text
+    .replace(/\0/g, "")
+    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .trim();
+}

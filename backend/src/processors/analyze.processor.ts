@@ -131,7 +131,7 @@ export async function processAnalyzeJob(job: Job<Jobs>) {
         const expanded = await generateSection(blueprint, section, input);
         expandedSections.push(expanded);
 
-        let fullContentSoFar = `# ${blueprint.title}\n\n${blueprint.description}\n\n---\n\n`;
+        fullContentSoFar = `# ${blueprint.title}\n\n${blueprint.description}\n\n---\n\n`;
         expandedSections.forEach((s: any) => {
           const bSection = blueprint.sections.find(
             (bs: any) => bs.id === s.section_id,

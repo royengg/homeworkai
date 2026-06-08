@@ -59,7 +59,7 @@ export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
       mode,
     };
 
-    const enqueued = await enqueueAnalysisJob("analyzeJobs", jobData);
+    await enqueueAnalysisJob("analyzeJobs", jobData);
     return res.status(200).json({
       message: "Analysis enqueued",
       payload: { analysisId: newAnalysis.id },
@@ -125,6 +125,6 @@ export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
   } catch (error) {
     return res
       .status(500)
-      .json({ message: "Failed to get analysis", payload: error });
+      .json({ message: "Failed to get analysis", payload: "" });
   }
 }

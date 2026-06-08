@@ -23,6 +23,8 @@ import {
 } from "./middleware/error.middleware";
 import { logger } from "./config/logger.config";
 import { config } from "./config/app.config";
+import { prisma } from "./db/prisma.db";
+import { redis } from "./config/redis.config";
 
 const PORT = config.port;
 
@@ -64,8 +66,25 @@ function gracefulShutdown(signal: string) {
   logger.info(`${signal} received, starting graceful shutdown`);
 
   if (server) {
-    server.close(() => {
+    server.close(async () => {
       logger.info("HTTP server closed");
+
+      try {
+        await prisma.$disconnect();
+        logger.info("Prisma disconnected");
+      } catch (e) {
+        logger.error("Error disconnecting Prisma", { error: e });
+      }
+
+      try {
+        if (redis) {
+          await redis.quit();
+          logger.info("Redis disconnected");
+        }
+      } catch (e) {
+        logger.error("Error disconnecting Redis", { error: e });
+      }
+
       process.exit(0);
     });
 

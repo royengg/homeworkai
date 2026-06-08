@@ -18,7 +18,7 @@ export const uploadService = {
   presign: async (payload: {
     filename: string;
     contentType: string;
-    fileSize?: number;
+    fileSize: number;
     folder?: string;
   }): Promise<ServiceResponse<PresignResponse>> => {
     return wrap(

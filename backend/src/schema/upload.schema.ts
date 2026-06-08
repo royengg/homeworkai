@@ -25,8 +25,7 @@ export const presignSchema = z.object({
     .max(
       MAX_FILE_SIZE_BYTES,
       `File size must not exceed ${config.maxFileSizeMB}MB`,
-    )
-    .optional(),
+    ),
 });
 
 export const confirmSchema = z.object({

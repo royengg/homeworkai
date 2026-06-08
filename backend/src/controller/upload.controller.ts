@@ -124,7 +124,6 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
         size: meta.contentLength,
         mime: meta.contentType,
         etag: meta.etag,
-        checksum: meta.etag,
       },
     });
 
