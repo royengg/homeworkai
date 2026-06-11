@@ -172,7 +172,7 @@ try {
     }
 
     return res.status(200).json({
-      items: listUploads,
+    items: listUploads,
       nextCursor,
     });
   } catch (error) {
