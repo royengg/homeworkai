@@ -1,27 +1,22 @@
-import dotenv from "dotenv";
+import { env } from "./env.schema";
 
-dotenv.config();
-
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-  throw new Error("JWT_SECRET is not defined in environment variables");
-}
+const bytesPerMB = 1024 * 1024;
 
 export const config = {
-  port: process.env.PORT || "3000",
-  nodeEnv: process.env.NODE_ENV || "development",
-  jwtSecret,
+  port: String(env.PORT),
+  nodeEnv: env.NODE_ENV,
+  jwtSecret: env.JWT_SECRET,
 
-  allowedOrigins: process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",")
-    : ["http://localhost:5173", "http://localhost:3000"],
-  
-  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"), 
-  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "100"),
-  
-  maxFileSizeMB: parseInt(process.env.MAX_FILE_SIZE_MB || "20"),
-  maxFileSizeBytes: parseInt(process.env.MAX_FILE_SIZE_MB || "20") * 1024 * 1024,
-  
-  logLevel: process.env.LOG_LEVEL || "info",
-  logFilePath: process.env.LOG_FILE_PATH || "./logs",
+  allowedOrigins: env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()),
+
+  rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,
+  rateLimitMaxRequests: env.RATE_LIMIT_MAX_REQUESTS,
+
+  maxFileSizeMB: env.MAX_FILE_SIZE_MB,
+  maxFileSizeBytes: env.MAX_FILE_SIZE_MB * bytesPerMB,
+
+  logLevel: env.LOG_LEVEL,
+  logFilePath: env.LOG_FILE_PATH,
+
+  trustProxyHops: env.TRUST_PROXY_HOPS,
 } as const;

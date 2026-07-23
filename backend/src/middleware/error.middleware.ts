@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { logger, sanitizeLogData } from "../config/logger.config";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
+import { isDevelopment } from "../config/env.schema";
 
 export interface ErrorWithStatus extends Error {
   statusCode?: number;
@@ -64,7 +65,7 @@ export function errorMiddleware(
     error: message,
     correlationId,
     ...(details && { details }),
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    ...(isDevelopment && { stack: err.stack }),
   });
 }
 
@@ -84,5 +85,8 @@ export function setupErrorHandlers() {
     logger.error("Unhandled Rejection", {
       reason: sanitizeLogData(reason),
     });
+    // Exit on unhandled rejection to avoid running in an undefined state.
+    // Node >= 15 already exits by default; this makes the intent explicit.
+    setTimeout(() => process.exit(1), 1000);
   });
 }

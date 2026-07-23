@@ -1,21 +1,13 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import { env } from "./env.schema";
 
-const endpoint = process.env.STORAGE_ENDPOINT;
-const region = process.env.STORAGE_REGION || "us-east-1";
-const accessKeyId = process.env.STORAGE_ACCESS_KEY_ID;
-const secretAccessKey = process.env.STORAGE_SECRET_ACCESS_KEY;
-
-if (!endpoint || !accessKeyId || !secretAccessKey) {
-  throw new Error(
-    "Missing storage env: STORAGE_ENDPOINT/ACCESS_KEY_ID/SECRET_ACCESS_KEY",
-  );
-}
-
-export const storageBucket =
-  process.env.STORAGE_BUCKET || "homeworkai-dev-uploads";
+export const storageBucket = env.STORAGE_BUCKET;
 
 export const s3 = new S3Client({
-  region,
-  endpoint,
-  credentials: { accessKeyId, secretAccessKey },
+  region: env.STORAGE_REGION,
+  endpoint: env.STORAGE_ENDPOINT,
+  credentials: {
+    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+  },
 });
