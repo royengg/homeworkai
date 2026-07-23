@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -7,19 +7,38 @@ import { Label } from '@/components/ui/Label';
 import { handleApiError } from '@/lib/api';
 import { BookOpen, AlertCircle } from 'lucide-react';
 
+interface FromState {
+  from?: { pathname?: string };
+}
+
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, login } = useAuth();
+  const locationState = location.state as FromState | null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Two ways back to the original URL:
+  //   1. ProtectedRoute's <Navigate state={{ from }}> (deep-link attempt)
+  //   2. Axios 401 interceptor's /login?from=<encoded> (session expired)
+  const queryFrom = new URLSearchParams(window.location.search).get('from');
+  const stateFrom = locationState?.from?.pathname;
+  const candidate = queryFrom ?? stateFrom ?? '';
+  const destination =
+    candidate &&
+    candidate !== '/login' &&
+    candidate !== '/register'
+      ? candidate
+      : '/dashboard';
+
   useEffect(() => {
     if (user) {
-      navigate('/dashboard', { replace: true });
+      navigate(destination, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, destination]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +47,7 @@ export function Login() {
 
     try {
       await login({ email, password });
-      navigate('/dashboard');
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(handleApiError(err));
     } finally {

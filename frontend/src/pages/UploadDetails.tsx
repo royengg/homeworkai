@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -7,6 +7,7 @@ import {
   analysisService,
   type AnalysisMode,
 } from "@/services/analysis.service";
+import { useAnalysisPolling } from "@/lib/useAnalysisPolling";
 import type { Upload, AnalysisOutput } from "@/lib/types";
 import {
   ArrowLeft,
@@ -208,30 +209,11 @@ export function UploadDetails() {
   const [apiError, setApiError] = useState("");
   const [mode, setMode] = useState<AnalysisMode>("homework");
   const [sourceOpen, setSourceOpen] = useState(true);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
 
-  const clearPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (uploadId) {
-      fetchUploadDetails();
-    }
-    return () => {
-      clearPolling();
-    };
-  }, [uploadId, clearPolling]);
-
-  const fetchUploadDetails = async () => {
+  const fetchUploadDetails = useCallback(async (signal?: AbortSignal) => {
     if (!uploadId) return;
 
-    const { data, error } = await uploadService.get(uploadId);
+    const { data, error } = await uploadService.get(uploadId, signal);
 
     if (error) {
       setApiError(error);
@@ -240,7 +222,35 @@ export function UploadDetails() {
     }
 
     setLoading(false);
-  };
+  }, [uploadId]);
+
+  // Hardened polling: exponential backoff (2s → 15s), max 10 min, pauses
+  // while the tab is hidden, aborts in-flight requests on unmount.
+  const polling = useAnalysisPolling({
+    uploadId: uploadId ?? "",
+    onUpdate: (next) => setUpload(next),
+    onTerminal: (reason) => {
+      setAnalyzing(false);
+      if (reason === "timeout") {
+        setApiError(
+          "Analysis is taking longer than usual — check back later.",
+        );
+      } else if (reason === "error") {
+        setApiError("Lost connection while waiting for analysis.");
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!uploadId) return;
+    const controller = new AbortController();
+    void fetchUploadDetails(controller.signal);
+    return () => {
+      controller.abort();
+      polling.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadId]);
 
   const handleAnalyze = async () => {
     if (!uploadId) return;
@@ -255,31 +265,9 @@ export function UploadDetails() {
       return;
     }
 
-    fetchUploadDetails();
-
-    pollingIntervalRef.current = setInterval(async () => {
-      const { data, error: pollError } = await uploadService.get(uploadId);
-
-      if (pollError) {
-        clearPolling();
-        setApiError(pollError);
-        setAnalyzing(false);
-        return;
-      }
-
-      if (data) {
-        const currentAnalysis = data.upload.analyses?.[0];
-        const status = currentAnalysis?.status;
-
-        if (status === "completed" || status === "failed") {
-          clearPolling();
-          setUpload(data.upload);
-          setAnalyzing(false);
-        } else if (status === "running") {
-          setUpload(data.upload);
-        }
-      }
-    }, 3000);
+    // Refresh once immediately, then start the backoff polling loop.
+    await fetchUploadDetails();
+    polling.start();
   };
 
   const handleDownload = async () => {
@@ -295,7 +283,7 @@ export function UploadDetails() {
     if (error) {
       setApiError(error);
     } else if (data) {
-      window.open(data.url, "_blank");
+      window.open(data.url, "_blank", "noopener,noreferrer");
     }
 
     setDownloading(false);

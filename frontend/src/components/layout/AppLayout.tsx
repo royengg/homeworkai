@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  FileText,
+  LogOut,
   BookOpen,
   Menu,
   X,
@@ -58,6 +58,19 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const drawerRef = useRef<HTMLElement | null>(null);
+
+  // Close the mobile drawer on Escape so keyboard users aren't stuck.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    // Move focus into the drawer so Tab can move within it.
+    drawerRef.current?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobileMenuOpen]);
 
   const navItems = [
     { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
@@ -115,8 +128,9 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
                 <p className="text-xs font-semibold truncate">{user?.name || 'User'}</p>
                 <p className="text-[10px] text-[#3b3a37] dark:text-[#9b948a] truncate tracking-tight">{user?.email}</p>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
+                aria-label="Log out"
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-[#f7f3ee] dark:hover:bg-[#1a1a1a]"
               >
                 <LogOut className="h-3 w-3 text-[#3b3a37] dark:text-[#c8c2b8]" />
@@ -129,8 +143,9 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
         <header className="md:hidden h-14 border-b border-[#1c1b19] dark:border-[#2a2a2a] bg-white/80 dark:bg-[#121212] backdrop-blur-md flex items-center justify-between px-4 z-50">
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
             className="p-2 -ml-2 text-[#3b3a37] dark:text-[#b9b3aa]"
           >
             <Menu className="h-5 w-5" />
@@ -148,13 +163,13 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
            </div>
            <div className="flex items-center gap-3">
              <ThemeToggle />
-             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19]">
-                <Bell className="h-4 w-4" />
-             </Button>
-             <div className="h-4 w-px bg-[#1c1b19] dark:bg-[#262626] mx-1" />
-             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19]">
-                <HelpCircle className="h-4 w-4" />
-             </Button>
+<Button variant="ghost" size="icon" aria-label="Notifications" className="h-9 w-9 rounded-lg text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19]">
+                 <Bell className="h-4 w-4" />
+              </Button>
+              <div className="h-4 w-px bg-[#1c1b19] dark:bg-[#262626] mx-1" />
+              <Button variant="ghost" size="icon" aria-label="Help" className="h-9 w-9 rounded-lg text-[#3b3a37] dark:text-[#c8c2b8] hover:text-[#1c1b19]">
+                 <HelpCircle className="h-4 w-4" />
+              </Button>
            </div>
         </header>
 
@@ -185,16 +200,24 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
               className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm md:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <motion.aside 
+            <motion.aside
+              ref={drawerRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 z-[70] w-72 bg-white dark:bg-[#121212] p-6 flex flex-col"
+              className="fixed inset-y-0 left-0 z-[70] w-72 bg-white dark:bg-[#121212] p-6 flex flex-col focus:outline-none"
             >
               <div className="flex items-center justify-between mb-8">
                 <span className="font-bold text-lg">HomeworkAI</span>
-                <button onClick={() => setIsMobileMenuOpen(false)}>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-label="Close navigation menu"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>

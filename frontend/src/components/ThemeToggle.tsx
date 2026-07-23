@@ -2,31 +2,53 @@ import { useState, useEffect } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+const THEME_KEY = 'theme';
 
-  useEffect(() => {
-    // Check initial preference
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
+function readInitialIsDark(): boolean {
+  if (typeof document === 'undefined') return false;
+  // The inline script in index.html already set the class before React mounts;
+  // trust it instead of re-reading localStorage, so the toggle and the actual
+  // rendered theme can never disagree on first paint.
+  return document.documentElement.classList.contains('dark');
+}
+
+export function ThemeToggle() {
+  const [isDark, setIsDark] = useState<boolean>(readInitialIsDark);
 
   const toggleTheme = () => {
-    if (isDark) {
-        document.documentElement.classList.remove('dark');
-        localStorage.theme = 'light';
-        setIsDark(false);
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      try {
+        localStorage.setItem(THEME_KEY, 'dark');
+      } catch {
+        // private mode / quota — ignore
+      }
     } else {
-        document.documentElement.classList.add('dark');
-        localStorage.theme = 'dark';
-        setIsDark(true);
+      document.documentElement.classList.remove('dark');
+      try {
+        localStorage.setItem(THEME_KEY, 'light');
+      } catch {
+        // private mode / quota — ignore
+      }
     }
   };
+
+  // Keep the toggle in sync if another tab changes the theme (storage event
+  // fires cross-tab). Avoids two tabs of the same user showing different
+  // themes after one of them toggles.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== THEME_KEY) return;
+      const next = e.newValue === 'dark';
+      setIsDark(next);
+      if (next) document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   return (
     <button

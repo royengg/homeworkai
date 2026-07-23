@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 
 import { Badge } from "@/components/ui/Badge";
 import { uploadService } from "@/services/upload.service";
+import { useUploadFlow } from "@/lib/useUploadFlow";
 import type { Upload } from "@/lib/types";
 import {
   Trash2,
@@ -15,6 +16,7 @@ import {
   Layers,
   FileText,
   Clock,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -34,32 +36,67 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  idle: "",
+  presigning: "Preparing…",
+  uploading: "Uploading…",
+  confirming: "Confirming…",
+  parsing: "Parsing…",
+  done: "Done",
+};
+
+function stageLabel(stage: string): string {
+  return STAGE_LABELS[stage] ?? "Uploading…";
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
   const [textImportOpen, setTextImportOpen] = useState(false);
   const [textImport, setTextImport] = useState("");
   const [pasting, setPasting] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const importMenuRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Close the import dropdown on outside click or Escape so it doesn't trap
+  // keyboard users or stay open on stray clicks elsewhere.
   useEffect(() => {
-    fetchUploads();
-  }, []);
+    if (!importMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        importMenuRef.current &&
+        !importMenuRef.current.contains(e.target as Node)
+      ) {
+        setImportMenuOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setImportMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [importMenuOpen]);
 
-  const fetchUploads = async (cursor?: string | null) => {
+  const { uploading, error: uploadError, stage, progress, uploadFile, uploadText, reset } =
+    useUploadFlow();
+
+  const fetchUploads = useCallback(async (cursor?: string | null) => {
     if (!cursor) {
       setLoading(true);
     }
 
-    const { data, error } = await uploadService.list(cursor, 6);
+    const { data, error: fetchError } = await uploadService.list(cursor, 6);
 
-    if (error) {
-      setError(error);
+    if (fetchError) {
+      setError(fetchError);
       setLoading(false);
       return;
     }
@@ -74,69 +111,42 @@ export function Dashboard() {
     }
 
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchUploads();
+  }, [fetchUploads]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (
-      file.type !== "application/pdf" &&
-      file.type !==
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      setError("Only PDF and DOCX files are allowed");
-      return;
-    }
-
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError("File size must not exceed 20MB");
-      return;
-    }
-
-    setUploading(true);
     setError("");
 
-    const presignResult = await uploadService.presign({
-      filename: file.name,
-      contentType: file.type,
-      fileSize: file.size,
-    });
-
-    if (presignResult.error) {
-      setError(presignResult.error);
-      setUploading(false);
+    const newUploadId = await uploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!newUploadId) {
+      // uploadFile already surfaced the error through the hook state.
       return;
-    }
-
-    const { url, uploadId, bucket, key } = presignResult.data!;
-
-    const uploadResult = await uploadService.uploadToS3(url, file);
-
-    if (uploadResult.error) {
-      setError(uploadResult.error);
-      setUploading(false);
-      return;
-    }
-
-    const confirmResult = await uploadService.confirm({ bucket, key });
-
-    if (confirmResult.error) {
-      setError(confirmResult.error);
-      setUploading(false);
-      return;
-    }
-
-    if (file.type === "application/pdf") {
-      await uploadService.parse(uploadId).catch(() => {});
-    } else {
-      await uploadService.parseDocx(uploadId).catch(() => {});
     }
     await fetchUploads();
+  };
 
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handlePasteSubmit = async () => {
+    if (!textImport.trim()) return;
+    setPasting(true);
+    setError("");
+    reset();
+
+    const newUploadId = await uploadText(textImport);
+    setPasting(false);
+    if (!newUploadId) {
+      return;
+    }
+    setTextImport("");
+    setTextImportOpen(false);
+    // Match the original behavior: jump straight to the new upload's detail
+    // page so the user can analyze it immediately.
+    navigate(`/upload/${newUploadId}`);
   };
 
   const handleDelete = async (e: React.MouseEvent, uploadId: string) => {
@@ -150,7 +160,10 @@ export function Dashboard() {
       return;
     }
 
-    setUploads(uploads.filter((u) => u.uploadId !== uploadId));
+    // Functional update — avoid stale-closure overwrite with the snapshot we
+    // closed over when this handler was created (rule: rerender-functional-
+    // setstate).
+    setUploads((prev) => prev.filter((u) => u.uploadId !== uploadId));
   };
 
   const openFilePicker = () => {
@@ -163,29 +176,7 @@ export function Dashboard() {
     setTextImportOpen(true);
   };
 
-  const handlePasteSubmit = async () => {
-    const trimmed = textImport.trim();
-    if (!trimmed) return;
-
-    setPasting(true);
-    setError("");
-
-    const { data, error } = await uploadService.paste(trimmed);
-
-    if (error) {
-      setError(error);
-      setPasting(false);
-      return;
-    }
-
-    if (data) {
-      setTextImport("");
-      setTextImportOpen(false);
-      navigate(`/upload/${data.uploadId}`);
-    }
-
-    setPasting(false);
-  };
+  // handlePasteSubmit is defined above (uses the shared useUploadFlow hook);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -262,7 +253,19 @@ export function Dashboard() {
             ) : (
               <FileUp className="h-4 w-4" />
             )}
-            <span>{uploading ? "Uploading..." : "Import Material"}</span>
+            <span>
+              {uploading
+                ? `${stageLabel(stage)}${stage === "uploading" && progress > 0 ? ` ${progress}%` : ""}`
+                : "Import Material"}
+            </span>
+            {uploading && stage === "uploading" && progress > 0 && (
+              <div className="ml-1 h-1.5 w-16 overflow-hidden rounded-full bg-white/20 dark:bg-black/20">
+                <div
+                  className="h-full bg-current transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform",
@@ -271,9 +274,15 @@ export function Dashboard() {
             />
           </Button>
           {importMenuOpen && (
-            <div className="absolute right-0 top-16 z-30 w-56 overflow-hidden rounded-2xl border border-[#d8d3cc] dark:border-[#3a3a3a] bg-white dark:bg-[#232323] p-2 shadow-premium">
+            <div
+              ref={importMenuRef}
+              role="menu"
+              aria-label="Import options"
+              className="absolute right-0 top-16 z-30 w-56 overflow-hidden rounded-2xl border border-[#d8d3cc] dark:border-[#3a3a3a] bg-white dark:bg-[#232323] p-2 shadow-premium"
+            >
               <button
                 type="button"
+                role="menuitem"
                 onClick={openFilePicker}
                 className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[#1c1b19] transition-colors hover:bg-[#f3eee8] dark:text-[#f4f1ed] dark:hover:bg-[#303030]"
               >
@@ -282,6 +291,7 @@ export function Dashboard() {
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={openTextImport}
                 className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[#1c1b19] transition-colors hover:bg-[#f3eee8] dark:text-[#f4f1ed] dark:hover:bg-[#303030]"
               >
@@ -340,10 +350,29 @@ export function Dashboard() {
           <AlertCircle className="h-4 w-4 text-red-600" />
           <p className="flex-1">{error}</p>
           <button
+            aria-label="Dismiss error"
             className="text-[#3b3a37] dark:text-[#b9b3aa] hover:text-[#1c1b19]"
             onClick={() => setError("")}
           >
-            Dismiss
+            <X className="h-4 w-4" />
+          </button>
+        </motion.div>
+      )}
+
+      {!error && uploadError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-4 text-xs font-bold bg-white/70 dark:bg-[#121212] border border-[#1c1b19] dark:border-[#2a2a2a] rounded-xl"
+        >
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <p className="flex-1">{uploadError}</p>
+          <button
+            aria-label="Dismiss error"
+            className="text-[#3b3a37] dark:text-[#b9b3aa] hover:text-[#1c1b19]"
+            onClick={reset}
+          >
+            <X className="h-4 w-4" />
           </button>
         </motion.div>
       )}
@@ -392,14 +421,30 @@ export function Dashboard() {
               <motion.div
                 key={upload.uploadId}
                 variants={item}
+                role={upload.status === "processed" ? "button" : undefined}
+                tabIndex={upload.status === "processed" ? 0 : undefined}
+                aria-label={
+                  upload.status === "processed"
+                    ? `Open ${upload.key.split("/").pop() ?? "upload"}`
+                    : undefined
+                }
                 onClick={() =>
                   upload.status === "processed" &&
                   navigate(`/upload/${upload.uploadId}`)
                 }
+                onKeyDown={(e) => {
+                  if (
+                    upload.status === "processed" &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault();
+                    navigate(`/upload/${upload.uploadId}`);
+                  }
+                }}
                 className={cn(
                   "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
                   upload.status === "processed"
-                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out"
+                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#706a62] dark:focus-visible:ring-[#5a5a5a]"
                     : "bg-white/40 dark:bg-[#0f0f0f] border-[#1c1b19] dark:border-[#2a2a2a] opacity-70",
                 )}
               >

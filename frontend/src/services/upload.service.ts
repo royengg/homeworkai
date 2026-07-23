@@ -10,9 +10,16 @@ export const uploadService = {
   list: async (
     cursor?: string | null,
     limit = 12,
+    signal?: AbortSignal,
   ): Promise<ServiceResponse<PaginatedResponse<Upload>>> => {
-    const query = cursor ? `?cursor=${cursor}&limit=${limit}` : `?limit=${limit}`;
-    return wrap(api.get<PaginatedResponse<Upload>>(`/upload/list${query}`).then((r) => r.data));
+    const query = cursor
+      ? `?cursor=${encodeURIComponent(cursor)}&limit=${limit}`
+      : `?limit=${limit}`;
+    return wrap(
+      api
+        .get<PaginatedResponse<Upload>>(`/upload/list${query}`, { signal })
+        .then((r) => r.data),
+    );
   },
 
   presign: async (payload: {
@@ -44,26 +51,37 @@ export const uploadService = {
     );
   },
 
-  get: async (uploadId: string): Promise<ServiceResponse<{ upload: Upload }>> => {
-    return wrap(api.get<{ upload: Upload }>(`/upload/${uploadId}`).then((r) => r.data));
+  get: async (
+    uploadId: string,
+    signal?: AbortSignal,
+  ): Promise<ServiceResponse<{ upload: Upload }>> => {
+    return wrap(
+      api
+        .get<{ upload: Upload }>(`/upload/${uploadId}`, { signal })
+        .then((r) => r.data),
+    );
   },
 
   delete: async (uploadId: string): Promise<ServiceResponse<{ message: string }>> => {
     return wrap(
-      api.delete<{ message: string }>(`/upload/${uploadId}/delete`).then((r) => r.data),
+      api
+        .delete<{ message: string }>(`/upload/${uploadId}/delete`)
+        .then((r) => r.data),
     );
   },
 
-  parse: async (uploadId: string): Promise<ServiceResponse<any>> => {
+  parse: async (uploadId: string): Promise<ServiceResponse<unknown>> => {
     return wrap(api.post(`/parse/${uploadId}`).then((r) => r.data));
   },
 
-  parseDocx: async (uploadId: string): Promise<ServiceResponse<any>> => {
+  parseDocx: async (uploadId: string): Promise<ServiceResponse<unknown>> => {
     return wrap(api.post(`/docxparse/${uploadId}`).then((r) => r.data));
   },
 
   paste: async (text: string): Promise<ServiceResponse<{ uploadId: string }>> => {
-    return wrap(api.post<{ uploadId: string }>("/paste", { text }).then((r) => r.data));
+    return wrap(
+      api.post<{ uploadId: string }>("/paste", { text }).then((r) => r.data),
+    );
   },
 
   uploadToS3: async (

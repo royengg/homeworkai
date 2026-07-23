@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { uploadService } from "@/services/upload.service";
+import { useUploadFlow } from "@/lib/useUploadFlow";
 import type { Upload } from "@/lib/types";
 import {
   Trash2,
   Loader2,
   CheckCircle2,
   AlertCircle,
+  X,
   Layers,
   FileText,
   Clock,
@@ -38,24 +40,22 @@ export function Archive() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchUploads();
-  }, []);
+  const { uploading, error: uploadError, uploadFile, reset } =
+    useUploadFlow();
 
-  const fetchUploads = async (cursor?: string | null) => {
+  const fetchUploads = useCallback(async (cursor?: string | null) => {
     if (cursor) {
       setLoadingMore(true);
     } else {
       setLoading(true);
     }
 
-    const { data, error } = await uploadService.list(cursor, 12);
+    const { data, error: fetchError } = await uploadService.list(cursor, 12);
 
-    if (error) {
-      setError(error);
+    if (fetchError) {
+      setError(fetchError);
       setLoading(false);
       setLoadingMore(false);
       return;
@@ -72,83 +72,40 @@ export function Archive() {
 
     setLoading(false);
     setLoadingMore(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchUploads();
+  }, [fetchUploads]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (
-      file.type !== "application/pdf" &&
-      file.type !==
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      setError("Only PDF and DOCX files are allowed");
-      return;
-    }
-
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError("File size must not exceed 20MB");
-      return;
-    }
-
-    setUploading(true);
     setError("");
 
-    const presignResult = await uploadService.presign({
-      filename: file.name,
-      contentType: file.type,
-      fileSize: file.size,
-    });
-
-    if (presignResult.error) {
-      setError(presignResult.error);
-      setUploading(false);
+    const newUploadId = await uploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!newUploadId) {
+      // uploadFile already surfaced the error through the hook state.
       return;
-    }
-
-    const { url, uploadId, bucket, key } = presignResult.data!;
-
-    const uploadResult = await uploadService.uploadToS3(url, file);
-
-    if (uploadResult.error) {
-      setError(uploadResult.error);
-      setUploading(false);
-      return;
-    }
-
-    const confirmResult = await uploadService.confirm({ bucket, key });
-
-    if (confirmResult.error) {
-      setError(confirmResult.error);
-      setUploading(false);
-      return;
-    }
-
-    if (file.type === "application/pdf") {
-      await uploadService.parse(uploadId).catch(() => {});
-    } else {
-      await uploadService.parseDocx(uploadId).catch(() => {});
     }
     await fetchUploads();
-
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDelete = async (e: React.MouseEvent, uploadId: string) => {
     e.stopPropagation();
     if (!confirm("Permanently delete this research material?")) return;
 
-    const { error } = await uploadService.delete(uploadId);
+    const { error: deleteError } = await uploadService.delete(uploadId);
 
-    if (error) {
-      setError(error);
+    if (deleteError) {
+      setError(deleteError);
       return;
     }
 
-    setUploads(uploads.filter((u) => u.uploadId !== uploadId));
+    // Functional update — avoid stale-closure overwrite (rule:
+    // rerender-functional-setstate).
+    setUploads((prev) => prev.filter((u) => u.uploadId !== uploadId));
   };
 
   const getStatusBadge = (status: string) => {
@@ -239,10 +196,29 @@ export function Archive() {
           <AlertCircle className="h-4 w-4 text-red-600" />
           <p className="flex-1">{error}</p>
           <button
+            aria-label="Dismiss error"
             className="text-[#3b3a37] dark:text-[#b9b3aa] hover:text-[#1c1b19]"
             onClick={() => setError("")}
           >
-            Dismiss
+            <X className="h-4 w-4" />
+          </button>
+        </motion.div>
+      )}
+
+      {!error && uploadError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-4 text-xs font-bold bg-white/70 dark:bg-[#121212] border border-[#1c1b19] dark:border-[#2a2a2a] rounded-xl"
+        >
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <p className="flex-1">{uploadError}</p>
+          <button
+            aria-label="Dismiss error"
+            className="text-[#3b3a37] dark:text-[#b9b3aa] hover:text-[#1c1b19]"
+            onClick={reset}
+          >
+            <X className="h-4 w-4" />
           </button>
         </motion.div>
       )}
@@ -290,14 +266,30 @@ export function Archive() {
               <motion.div
                 key={upload.uploadId}
                 variants={item}
+                role={upload.status === "processed" ? "button" : undefined}
+                tabIndex={upload.status === "processed" ? 0 : undefined}
+                aria-label={
+                  upload.status === "processed"
+                    ? `Open ${upload.key.split("/").pop() ?? "upload"}`
+                    : undefined
+                }
                 onClick={() =>
                   upload.status === "processed" &&
                   navigate(`/upload/${upload.uploadId}`)
                 }
+                onKeyDown={(e) => {
+                  if (
+                    upload.status === "processed" &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault();
+                    navigate(`/upload/${upload.uploadId}`);
+                  }
+                }}
                 className={cn(
                   "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
                   upload.status === "processed"
-                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out"
+                    ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#706a62] dark:focus-visible:ring-[#5a5a5a]"
                     : "bg-white/40 dark:bg-[#0f0f0f] border-[#1c1b19] dark:border-[#2a2a2a] opacity-70",
                 )}
               >
