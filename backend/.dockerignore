@@ -1,0 +1,14 @@
+# Don't ship host artifacts into the build context.
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+*.log
+logs
+README.md
+coverage
+.nyc_output
