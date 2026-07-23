@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { prisma } from "../db/prisma.db";
 import { renderSlimToPdfBuffer } from "../services/render.service";
@@ -8,81 +8,135 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { presignGet, headObject } from "../services/storage.service";
 import { logger } from "../config/logger.config";
 
-export async function renderAnalysis(req: AuthenticatedRequest, res: Response) {
+/**
+ * POST render — idempotent: if the PDF already exists in storage we just
+ * return its download URL. Otherwise we generate and upload it. Cache key is
+ * `exports/${uploadId}/${analysisId}.pdf`.
+ */
+export async function renderAnalysis(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const user = req.user;
-  if (!user) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
   const { uploadId, analysisId } = req.params;
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
   if (!uploadId || !analysisId) {
-    return res.status(400).json({ message: "uploadId and analysisId are required" });
+    return res.status(400).json({ error: "uploadId and analysisId are required" });
   }
 
   try {
-    const upload = await prisma.upload.findUnique({
-      where: { uploadId },
-    });
-
+    const upload = await prisma.upload.findUnique({ where: { uploadId } });
     if (!upload || upload.userId !== user.userId) {
-      return res.status(upload ? 403 : 404).json({ message: upload ? "Forbidden" : "Upload not found" });
+      return res
+        .status(upload ? 403 : 404)
+        .json({ error: upload ? "Forbidden" : "Upload not found" });
     }
 
     const analysis = await prisma.analysisResult.findFirst({
-      where: { uploadId, id: analysisId },
+      where: { uploadId, id: analysisId, upload: { userId: user.userId } },
     });
-
-    if (!analysis) {
-      return res.status(404).json({ message: "Analysis not found" });
-    }
-
-    const output = resultSchema.safeParse(analysis.output);
-    if (!output.success) {
-      return res.status(400).json({ message: "Invalid output format", payload: output.error });
-    }
+    if (!analysis) return res.status(404).json({ error: "Analysis not found" });
 
     const key = `exports/${uploadId}/${analysisId}.pdf`;
 
-    // Check if PDF already exists in storage to avoid re-rendering
+    // Cache hit — don't regenerate.
     try {
       await headObject({ key, bucket: upload.bucket });
       const { url } = await presignGet({ key, bucket: upload.bucket });
       return res.status(200).json({ key, pages: analysis.pages, url });
     } catch {
-      // PDF doesn't exist yet — render it
+      // PDF doesn't exist yet — fall through to render.
+    }
+
+    const output = resultSchema.safeParse(analysis.output);
+    if (!output.success) {
+      return res
+        .status(400)
+        .json({ error: "Invalid output format", details: output.error.issues });
     }
 
     const { buffer, pages } = await renderSlimToPdfBuffer(output.data);
-    
+
     await s3.send(
       new PutObjectCommand({
         Bucket: upload.bucket,
         Key: key,
         Body: buffer,
         ContentType: "application/pdf",
-      })
+      }),
     );
 
-    // Save page count on the analysis record for future cache hits
     await prisma.analysisResult.update({
       where: { id: analysisId },
       data: { solutionBucket: upload.bucket, solutionKey: key, pages },
     });
 
     const { url } = await presignGet({ key, bucket: upload.bucket });
-
     return res.status(200).json({ key, pages, url });
   } catch (error: any) {
-    logger.error("Failed to render analysis", { 
-      error: error?.message || error, 
+    logger.error("Failed to render analysis", {
+      error: error?.message || error,
       stack: error?.stack,
-      uploadId, 
-      analysisId 
+      uploadId,
+      analysisId,
     });
-    return res.status(500).json({ message: "Failed to render analysis" });
+    return next(error);
   }
 }
 
-export async function getDownloadUrl(req: AuthenticatedRequest, res: Response) {
-  return renderAnalysis(req, res);
+/**
+ * GET download — read-only. Returns a fresh presigned URL for an already-
+ * rendered solution PDF. Returns 404 if it has not been rendered yet (so the
+ * client can call POST /render first). This makes the GET genuinely
+ * idempotent: browsers, scanners, and curl retries no longer trigger S3
+ * writes as a side effect.
+ */
+export async function getDownloadUrl(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  const user = req.user;
+  const { uploadId, analysisId } = req.params;
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  if (!uploadId || !analysisId) {
+    return res
+      .status(400)
+      .json({ error: "uploadId and analysisId are required" });
+  }
+
+  try {
+    const upload = await prisma.upload.findUnique({ where: { uploadId } });
+    if (!upload || upload.userId !== user.userId) {
+      return res
+        .status(upload ? 403 : 404)
+        .json({ error: upload ? "Forbidden" : "Upload not found" });
+    }
+
+    const analysis = await prisma.analysisResult.findFirst({
+      where: { uploadId, id: analysisId, upload: { userId: user.userId } },
+    });
+    if (!analysis) return res.status(404).json({ error: "Analysis not found" });
+
+    const key = analysis.solutionKey ?? `exports/${uploadId}/${analysisId}.pdf`;
+    try {
+      await headObject({ key, bucket: upload.bucket });
+    } catch {
+      return res.status(404).json({
+        error:
+          "Solution PDF has not been rendered yet. Call POST /render first.",
+      });
+    }
+
+    const { url } = await presignGet({ key, bucket: upload.bucket });
+    return res.status(200).json({ url });
+  } catch (error: any) {
+    logger.error("Failed to get download URL", {
+      error: error?.message || error,
+      uploadId,
+      analysisId,
+    });
+    return next(error);
+  }
 }

@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { pasteSchema } from "../schema/paste.schema";
 import { prisma } from "../db/prisma.db";
 import { storageBucket } from "../config/storage.config";
@@ -6,14 +6,15 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { logger } from "../config/logger.config";
 import { sanitizeTextInput } from "../utils/format.utils";
 
-export async function pasteText(req: AuthenticatedRequest, res: Response) {
+export async function pasteText(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const parsed = pasteSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid request body",
-      details: parsed.error.issues,
-    });
+    return next(parsed.error);
   }
 
   const user = req.user;
@@ -25,25 +26,25 @@ export async function pasteText(req: AuthenticatedRequest, res: Response) {
   const sanitizedText = sanitizeTextInput(text);
 
   if (!sanitizedText) {
-    return res.status(400).json({ error: "Text content is empty after sanitization" });
+    return res
+      .status(400)
+      .json({ error: "Text content is empty after sanitization" });
   }
 
   try {
+    // Create the upload row and its parse result atomically so a partial
+    // failure cannot leave an orphaned upload with status "processed".
     const upload = await prisma.upload.create({
       data: {
         userId: user.userId,
         bucket: storageBucket,
-        key: `paste_${Date.now()}.txt`,
+        key: `paste_${user.userId}_${Date.now()}.txt`,
         status: "processed",
+        parseResult: {
+          create: { text: sanitizedText, numPages: 1 },
+        },
       },
-    });
-
-    await prisma.parseResult.create({
-      data: {
-        uploadId: upload.uploadId,
-        text: sanitizedText,
-        numPages: 1,
-      },
+      include: { parseResult: true },
     });
 
     logger.info("Paste upload created", {
@@ -54,8 +55,6 @@ export async function pasteText(req: AuthenticatedRequest, res: Response) {
 
     return res.status(201).json({ uploadId: upload.uploadId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    logger.error("Paste upload failed", { error: message });
-    return res.status(500).json({ error: "Failed to create paste upload" });
+    return next(error);
   }
 }

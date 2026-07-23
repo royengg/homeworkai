@@ -12,17 +12,22 @@ import { logger } from "../config/logger.config";
 export async function presignPut(params: {
   key: string;
   contentType: string;
+  contentLength: number;
   bucket?: string;
   expiresIn?: number;
 }) {
   const bucket = params.bucket ?? storageBucket;
   const expiresIn = params.expiresIn ?? 600;
+  // Signing ContentLength forces the client's PUT body to match the declared
+  // size; any mismatch invalidates the SigV4 signature, preventing oversized
+  // uploads. defense-in-depth: confirmUpload also re-checks the real size.
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: params.key,
     ContentType: params.contentType,
+    ContentLength: params.contentLength,
   });
-  let url = await getSignedUrl(s3, command, { expiresIn });
+  const url = await getSignedUrl(s3, command, { expiresIn });
 
   const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
   return { bucket, key: params.key, url, expiresAt };

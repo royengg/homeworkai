@@ -7,35 +7,40 @@ const ALLOWED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-export const presignSchema = z.object({
-  filename: z
-    .string()
-    .min(1, "Filename is required")
-    .max(255, "Filename too long"),
-  contentType: z
-    .string()
-    .refine(
-      (type) => ALLOWED_MIME_TYPES.includes(type),
-      `Content type must be one of: ${ALLOWED_MIME_TYPES.join(", ")}`,
-    ),
-  folder: z.string().optional(),
-  fileSize: z
-    .number()
-    .positive("File size must be positive")
-    .max(
-      MAX_FILE_SIZE_BYTES,
-      `File size must not exceed ${config.maxFileSizeMB}MB`,
-    ),
-});
+export const presignSchema = z
+  .object({
+    filename: z
+      .string()
+      .min(1, "Filename is required")
+      .max(255, "Filename too long"),
+    contentType: z
+      .string()
+      .refine(
+        (type) => ALLOWED_MIME_TYPES.includes(type),
+        `Content type must be one of: ${ALLOWED_MIME_TYPES.join(", ")}`,
+      ),
+    folder: z.string().max(64).optional(),
+    fileSize: z
+      .number()
+      .int()
+      .positive("File size must be positive")
+      .max(
+        MAX_FILE_SIZE_BYTES,
+        `File size must not exceed ${config.maxFileSizeMB}MB`,
+      ),
+  })
+  .strict();
 
-export const confirmSchema = z.object({
-  bucket: z.string().optional(),
-  key: z.string().min(1, "Key is required"),
-});
+export const confirmSchema = z
+  .object({
+    bucket: z.string().min(1, "bucket is required"),
+    key: z.string().min(1, "Key is required"),
+  })
+  .strict();
 
 export const listUploadSchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.coerce.number().min(1).max(50).default(10).optional(),
+  cursor: z.string().max(512).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
 export type PresignUploadInput = z.infer<typeof presignSchema>;

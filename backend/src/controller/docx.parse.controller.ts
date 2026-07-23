@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.db";
 import { s3 } from "../config/storage.config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
@@ -7,11 +7,14 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { ParsedResult } from "../types/parsed-result.types";
 import { logger } from "../config/logger.config";
 import { parseDocx } from "../services/docx.parse.service";
+import { config } from "../config/app.config";
+import { magicBytesMatchMime } from "../utils/file-type.util";
 
 export async function parseDocxController(
   req: AuthenticatedRequest,
   res: Response,
-): Promise<ParsedResult | Response | undefined> {
+  next: NextFunction,
+) {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -43,6 +46,15 @@ export async function parseDocxController(
       },
     });
 
+    // Enforce server-side size cap before buffering into memory.
+    if (upload.size && upload.size > config.maxFileSizeBytes) {
+      await prisma.upload.update({
+        where: { uploadId: uploadId },
+        data: { status: "failed", error: "File exceeds size limit" },
+      });
+      return res.status(413).json({ error: "File exceeds size limit" });
+    }
+
     const command = new GetObjectCommand({
       Bucket: upload.bucket,
       Key: upload.key,
@@ -60,7 +72,16 @@ export async function parseDocxController(
 
     if (body instanceof Readable) {
       const chunks: Buffer[] = [];
+      let accumulated = 0;
       for await (const chunk of body) {
+        accumulated += chunk.length;
+        if (accumulated > config.maxFileSizeBytes) {
+          await prisma.upload.update({
+            where: { uploadId },
+            data: { status: "failed", error: "File exceeds size limit" },
+          });
+          return res.status(413).json({ error: "File exceeds size limit" });
+        }
         chunks.push(chunk as Buffer);
       }
       const buffer = Buffer.concat(chunks);
@@ -68,6 +89,22 @@ export async function parseDocxController(
       logger.debug("DOCX buffer created", {
         bufferSize: buffer.length,
       });
+      // Magic-byte check before handing bytes to officeparser (defense against
+      // poisoned/mislabeled files uploaded via the presigned URL).
+      const declaredMime =
+        upload.mime ??
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      if (!magicBytesMatchMime(buffer, declaredMime)) {
+        await prisma.upload.update({
+          where: { uploadId },
+          data: { status: "failed", error: "File content does not match its type" },
+        }).catch(() => void 0);
+        logger.warn("DOCX magic-byte mismatch", { uploadId });
+        return res
+          .status(415)
+          .json({ error: "File content does not match its declared type" });
+      }
+
       const docxText = await parseDocx(buffer);
 
       logger.info("DOCX parsed successfully", {
@@ -113,17 +150,21 @@ export async function parseDocxController(
       });
       return res.json(docxText);
     }
-    return res.status(500).json({
-      error: "Failed to parse DOCX",
-    });
+    await prisma.upload.update({
+      where: { uploadId },
+      data: { status: "failed", error: "Storage stream unavailable" },
+    }).catch(() => void 0);
+    return res.status(500).json({ error: "Failed to parse DOCX" });
   } catch (e) {
     logger.error("Error in parseDocxController", {
+      uploadId,
       error: e instanceof Error ? e.message : "Unknown error",
       stack: e instanceof Error ? e.stack : undefined,
     });
-    return res.status(500).json({
-      error: "Failed to parse DOCX",
-      details: e instanceof Error ? e.message : "Unknown error",
-    });
+    await prisma.upload.update({
+      where: { uploadId },
+      data: { status: "failed", error: "Parse failure" },
+    }).catch(() => void 0);
+    return next(e);
   }
 }

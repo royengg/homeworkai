@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import {
   presignSchema,
   confirmSchema,
@@ -13,6 +13,8 @@ import {
 import { prisma } from "../db/prisma.db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { logger } from "../config/logger.config";
+import { config } from "../config/app.config";
+import { encodeCursor, decodeCursor } from "../utils/cursor.util";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -24,7 +26,11 @@ function sanitizeFolder(input?: string) {
   return clean ? `${clean}/` : "";
 }
 
-export async function presignUpload(req: AuthenticatedRequest, res: Response) {
+export async function presignUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const parsed = presignSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -39,7 +45,7 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { filename, contentType, folder } = parsed.data;
+  const { filename, contentType, folder, fileSize } = parsed.data;
   const timestamp = Date.now();
   const san = sanitizeFilename(filename);
   const ext =
@@ -47,12 +53,14 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
   const name =
     san.lastIndexOf(".") !== -1 ? san.substring(0, san.lastIndexOf(".")) : san;
 
-  const key = `${sanitizeFolder(folder)}${name}_${timestamp}${ext}`;
+  // Namespace keys per user to prevent cross-user key enumeration/collision.
+  const key = `${user.userId}/${sanitizeFolder(folder)}${name}_${timestamp}${ext}`;
 
   try {
     const { url, bucket, expiresAt } = await presignPut({
       key,
       contentType,
+      contentLength: fileSize,
     });
 
     const newUpload = await prisma.upload.create({
@@ -72,22 +80,22 @@ export async function presignUpload(req: AuthenticatedRequest, res: Response) {
       expiresAt,
     });
   } catch (e) {
-    if (e instanceof Error) {
-      logger.error("Presign upload error", {
-        message: e.message,
-        stack: e.stack,
-      });
-    } else {
-      logger.error("Presign upload error", { error: e });
-    }
-    return res.status(500).json({ error: "Failed to create presigned URL" });
+    logger.error("Presign upload error", {
+      error: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack : undefined,
+    });
+    return next(e);
   }
 }
 
-export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
+export async function confirmUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const parsed = confirmSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid request body" });
+    return next(parsed.error);
   }
 
   const user = req.user;
@@ -95,28 +103,38 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  const { bucket: clientBucket, key } = parsed.data;
+
   try {
+    // Filter by userId upfront so foreign uploads return 404 instead of 403,
+    // removing the existence oracle.
     const upload = await prisma.upload.findFirst({
-      where: {
-        bucket: parsed.data.bucket as string,
-        key: parsed.data.key,
-      },
+      where: { userId: user.userId, bucket: clientBucket, key },
     });
 
     if (!upload) {
       return res.status(404).json({ error: "Upload not found" });
     }
 
-    if (upload.userId !== user.userId) {
-      return res.status(403).json({ error: "User mismatch" });
+    const meta = await headObject({ key, bucket: upload.bucket });
+
+    // Server-side size enforcement: reject and clean up oversized objects.
+    if (meta.contentLength > config.maxFileSizeBytes) {
+      await prisma.upload
+        .delete({ where: { uploadId: upload.uploadId } })
+        .catch(() => void 0);
+      await deleteObject({ key, bucket: upload.bucket }).catch(() => void 0);
+      logger.warn("Rejected oversized upload at confirm", {
+        uploadId: upload.uploadId,
+        contentLength: meta.contentLength,
+        limit: config.maxFileSizeBytes,
+      });
+      return res.status(413).json({ error: "File exceeds size limit" });
     }
 
-    const { bucket, key } = parsed.data;
-    const meta = await headObject(bucket ? { key, bucket } : { key });
-
-    const updatedUpload = await prisma.upload.update({
+    await prisma.upload.update({
       where: {
-        bucket_key: { bucket: meta.bucket, key },
+        bucket_key: { bucket: upload.bucket, key },
       },
       data: {
         status: "uploaded",
@@ -128,7 +146,7 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
     });
 
     return res.status(200).json({
-      bucket,
+      bucket: upload.bucket,
       key,
       contentLength: meta.contentLength,
       contentType: meta.contentType,
@@ -136,11 +154,15 @@ export async function confirmUpload(req: AuthenticatedRequest, res: Response) {
       lastModified: meta.lastModified,
     });
   } catch (e) {
-    return res.status(500).json({ error: "Failed to confirm upload" });
+    return next(e);
   }
 }
 
-export async function listUpload(req: AuthenticatedRequest, res: Response) {
+export async function listUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -153,34 +175,60 @@ export async function listUpload(req: AuthenticatedRequest, res: Response) {
 
   const { cursor, limit = 10 } = parsed.data;
 
-try {
-    const listUploads = await prisma.upload.findMany({
-      where: { userId: user.userId },
-      take: limit + 1, // Fetch one extra to see if there's a next page
-      ...(cursor ? { cursor: { uploadId: cursor } } : {}),
-      orderBy: [
-        { createdAt: "desc" },
-        { uploadId: "desc" }, // Stable sort
+  // Keyset pagination: when a cursor is present, decode the (createdAt, uploadId)
+  // tuple and filter for everything strictly "before" that point in the
+  // orderBy. This fixes duplicate/skipped items the original `cursor` on
+  // uploadId produced because the orderBy used createdAt first.
+  let cursorFilter: any = undefined;
+  if (cursor) {
+    const decoded = decodeCursor(cursor);
+    if (!decoded) {
+      return res.status(400).json({ error: "Invalid cursor" });
+    }
+    cursorFilter = {
+      OR: [
+        { createdAt: { lt: new Date(decoded.createdAt) } },
+        {
+          createdAt: { equals: new Date(decoded.createdAt) },
+          uploadId: { lt: decoded.uploadId },
+        },
       ],
+    };
+  }
+
+  try {
+    const listUploads = await prisma.upload.findMany({
+      where: { userId: user.userId, ...(cursorFilter ? cursorFilter : {}) },
+      take: limit + 1,
+      orderBy: [{ createdAt: "desc" }, { uploadId: "desc" }],
       include: { analyses: true },
     });
 
     let nextCursor: string | null = null;
     if (listUploads.length > limit) {
       const nextItem = listUploads.pop();
-      nextCursor = nextItem?.uploadId || null;
+      if (nextItem) {
+        nextCursor = encodeCursor({
+          createdAt: nextItem.createdAt.toISOString(),
+          uploadId: nextItem.uploadId,
+        });
+      }
     }
 
     return res.status(200).json({
-    items: listUploads,
+      items: listUploads,
       nextCursor,
     });
   } catch (error) {
-    return res.status(500).json({ error: "Failed to list uploads" });
+    return next(error);
   }
 }
 
-export async function getUpload(req: AuthenticatedRequest, res: Response) {
+export async function getUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -206,11 +254,15 @@ export async function getUpload(req: AuthenticatedRequest, res: Response) {
 
     return res.status(200).json({ upload });
   } catch (error) {
-    return res.status(500).json({ error: "Failed to get upload" });
+    return next(error);
   }
 }
 
-export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
+export async function deleteUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -300,6 +352,6 @@ export async function deleteUpload(req: AuthenticatedRequest, res: Response) {
       uploadId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return res.status(500).json({ error: "Failed to delete upload" });
+    return next(error);
   }
 }

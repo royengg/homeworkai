@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../db/prisma.db";
 import { redis } from "../config/redis.config";
-import { s3 } from "../config/storage.config";
+import { s3, storageBucket } from "../config/storage.config";
 import { HeadBucketCommand } from "@aws-sdk/client-s3";
 import { logger } from "../config/logger.config";
 
@@ -42,11 +42,8 @@ export async function readinessCheck(req: Request, res: Response) {
   }
 
   try {
-    const bucket = process.env.STORAGE_BUCKET;
-    if (bucket) {
-      await s3.send(new HeadBucketCommand({ Bucket: bucket }));
-      checks.storage = true;
-    }
+    await s3.send(new HeadBucketCommand({ Bucket: storageBucket }));
+    checks.storage = true;
   } catch (error) {
     allHealthy = false;
     logger.error("Storage health check failed", { error });

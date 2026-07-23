@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { parsePDF } from "../services/parse.service";
 import { prisma } from "../db/prisma.db";
 import { s3 } from "../config/storage.config";
@@ -7,10 +7,13 @@ import { Readable } from "stream";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { ParsedResult } from "../types/parsed-result.types";
 import { logger } from "../config/logger.config";
+import { config } from "../config/app.config";
+import { magicBytesMatchMime } from "../utils/file-type.util";
 
 export async function parsePDFController(
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) {
   const user = req.user;
   if (!user) {
@@ -44,6 +47,15 @@ export async function parsePDFController(
       },
     });
 
+    // Enforce server-side size cap before buffering into memory.
+    if (upload.size && upload.size > config.maxFileSizeBytes) {
+      await prisma.upload.update({
+        where: { uploadId: uploadId },
+        data: { status: "failed", error: "File exceeds size limit" },
+      });
+      return res.status(413).json({ error: "File exceeds size limit" });
+    }
+
     const command = new GetObjectCommand({
       Bucket: upload.bucket,
       Key: upload.key,
@@ -61,7 +73,16 @@ export async function parsePDFController(
 
     if (body instanceof Readable) {
       const chunks: Buffer[] = [];
+      let accumulated = 0;
       for await (const chunk of body) {
+        accumulated += chunk.length;
+        if (accumulated > config.maxFileSizeBytes) {
+          await prisma.upload.update({
+            where: { uploadId },
+            data: { status: "failed", error: "File exceeds size limit" },
+          });
+          return res.status(413).json({ error: "File exceeds size limit" });
+        }
         chunks.push(chunk as Buffer);
       }
       const buffer = Buffer.concat(chunks);
@@ -69,6 +90,19 @@ export async function parsePDFController(
       logger.debug("PDF buffer created", { 
         bufferSize: buffer.length 
       });
+
+      // Magic-byte check before handing bytes to pdf-parse (defense against
+      // poisoned/mislabeled files uploaded via the presigned URL).
+      if (!magicBytesMatchMime(buffer, upload.mime ?? "application/pdf")) {
+        await prisma.upload.update({
+          where: { uploadId },
+          data: { status: "failed", error: "File content does not match its type" },
+        }).catch(() => void 0);
+        logger.warn("PDF magic-byte mismatch", { uploadId });
+        return res
+          .status(415)
+          .json({ error: "File content does not match its declared type" });
+      }
 
       const pdfData = (await parsePDF(buffer)) as ParsedResult;
       
@@ -114,17 +148,24 @@ export async function parsePDFController(
 
       return res.json(pdfData);
     } else {
-      logger.error("S3 body is not a readable stream", { bodyType: typeof body });
+      logger.error("S3 body is not a readable stream", { uploadId, bodyType: typeof body });
+      // Mark as failed so the row doesn't sit in "processing" forever.
+      await prisma.upload.update({
+        where: { uploadId },
+        data: { status: "failed", error: "Storage stream unavailable" },
+      }).catch(() => void 0);
       return res.status(500).json({ error: "Failed to parse PDF: storage error" });
     }
   } catch (e) {
-    logger.error("Error in parsePDFController", { 
+    logger.error("Error in parsePDFController", {
+      uploadId,
       error: e instanceof Error ? e.message : "Unknown error",
-      stack: e instanceof Error ? e.stack : undefined 
+      stack: e instanceof Error ? e.stack : undefined,
     });
-    return res.status(500).json({ 
-      error: "Failed to parse PDF", 
-      details: e instanceof Error ? e.message : "Unknown error" 
-    });
+    await prisma.upload.update({
+      where: { uploadId },
+      data: { status: "failed", error: "Parse failure" },
+    }).catch(() => void 0);
+    return next(e);
   }
 }

@@ -1,130 +1,121 @@
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
-import { Response } from "express";
+import { Response, NextFunction } from "express";
 import { prisma } from "../db/prisma.db";
 import { enqueueAnalysisJob } from "../queues/analysis.queue";
 import { logger } from "../config/logger.config";
+import { AnalysisStatus } from "@prisma/client";
 
-export async function runAnalysis(req: AuthenticatedRequest, res: Response) {
+export async function runAnalysis(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const uploadId = req.params.uploadId;
-  if (!uploadId || uploadId === "") {
-    return res
-      .status(400)
-      .json({ message: "uploadId is required", payload: "" });
-  }
   const user = req.user;
   if (!user) {
-    return res.status(401).json({ message: "Unauthorized", payload: "" });
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  if (!uploadId) {
+    return res.status(400).json({ error: "uploadId is required" });
   }
 
   try {
     const upload = await prisma.upload.findUnique({
-      where: {
-        uploadId: uploadId,
-      },
-      include: {
-        parseResult: true,
-      },
+      where: { uploadId },
+      include: { parseResult: true },
     });
     if (!upload) {
-      return res.status(404).json({ message: "Upload not found", payload: "" });
+      return res.status(404).json({ error: "Upload not found" });
+    }
+    if (upload.userId !== user.userId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (upload.userId !== req.user?.userId) {
-      return res.status(403).json({ message: "Forbidden", payload: "" });
+    const parsedText = upload.parseResult?.text;
+    if (!parsedText) {
+      return res.status(404).json({ error: "parse result not found" });
     }
-
-    const parsed = upload.parseResult?.text;
-    if (!parsed || parsed === "") {
-      return res
-        .status(404)
-        .json({ message: "parse result not found", payload: "" });
-    }
-
-    const newAnalysis = await prisma.analysisResult.create({
-      data: {
-        uploadId: upload.uploadId,
-        output: {} as any,
-        status: "queued",
-      },
-    });
 
     const mode: "homework" | "assignment" =
       req.body?.mode === "assignment" ? "assignment" : "homework";
 
-    const id = newAnalysis.id;
+    // Create the AnalysisResult first, then enqueue with a deterministic jobId
+    // derived from analysisId. On enqueue failure, flip the row to failed so
+    // the client never sees a "queued" row with no worker attached.
+    const newAnalysis = await prisma.analysisResult.create({
+      data: {
+        uploadId: upload.uploadId,
+        output: {} as any,
+        status: AnalysisStatus.queued,
+      },
+    });
 
-    const jobData = {
-      analysisId: id,
-      uploadId: uploadId,
-      mode,
-    };
+    try {
+      await enqueueAnalysisJob("analyzeJobs", {
+        analysisId: newAnalysis.id,
+        uploadId,
+        mode,
+      });
+    } catch (enqueueError) {
+      // Roll back the row state so it cannot sit in "queued" forever.
+      await prisma.analysisResult
+        .update({
+          where: { id: newAnalysis.id },
+          data: {
+            status: AnalysisStatus.failed,
+            error: "Failed to enqueue analysis job",
+          },
+        })
+        .catch(() => void 0);
+      throw enqueueError;
+    }
 
-    await enqueueAnalysisJob("analyzeJobs", jobData);
-    return res.status(200).json({
+    return res.status(201).json({
       message: "Analysis enqueued",
       payload: { analysisId: newAnalysis.id },
     });
   } catch (error) {
     logger.error("Error running analysis", { error, uploadId });
-    return res.status(500).json({
-      message: error instanceof Error ? error.message : "Unknown error",
-      payload: "",
-    });
+    return next(error);
   }
 }
 
-export async function getAnalysis(req: AuthenticatedRequest, res: Response) {
+export async function getAnalysis(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const uploadId = req.params.uploadId;
-  if (!uploadId) {
-    return res
-      .status(400)
-      .json({ message: "uploadId is required", payload: "" });
-  }
+  const analysisId = req.params.analysisId;
   const user = req.user;
   if (!user) {
-    return res.status(401).json({ message: "Unauthorized", payload: "" });
+    return res.status(401).json({ error: "Unauthorized" });
   }
-
-  const analysisId = req.params.analysisId;
-  if (!analysisId) {
+  if (!uploadId || !analysisId) {
     return res
       .status(400)
-      .json({ message: "analysisId is required", payload: "" });
+      .json({ error: "uploadId and analysisId are required" });
   }
 
   try {
-    const upload = await prisma.upload.findUnique({
-      where: {
-        uploadId: uploadId,
-      },
-    });
-
-    if (!upload) {
-      return res.status(404).json({ message: "Upload not found", payload: "" });
-    }
-
-    if (upload.userId !== req.user?.userId) {
-      return res.status(403).json({ message: "User mismatch", payload: "" });
-    }
-
+    // Filter the analysis by its parent upload's owner so the lookup itself
+    // cannot return another user's analysis (defense in depth against IDOR).
     const analysis = await prisma.analysisResult.findFirst({
       where: {
-        uploadId: uploadId,
         id: analysisId,
+        uploadId,
+        upload: { userId: user.userId },
       },
     });
+
     if (!analysis) {
-      return res
-        .status(404)
-        .json({ message: "Analysis not found", payload: "" });
+      return res.status(404).json({ error: "Analysis not found" });
     }
 
     return res
       .status(200)
       .json({ message: "Analysis found", payload: analysis.output });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Failed to get analysis", payload: "" });
+    return next(error);
   }
 }
