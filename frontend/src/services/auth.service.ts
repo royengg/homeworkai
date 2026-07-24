@@ -1,5 +1,10 @@
 import { api } from "@/lib/api";
-import type { AuthResponse, LoginCredentials, RegisterData, User } from "@/lib/types";
+import type {
+  AuthResponse,
+  LoginCredentials,
+  MeResponse,
+  RegisterData,
+} from "@/lib/types";
 import { wrap, type ServiceResponse } from "./service-utils";
 
 export const authService = {
@@ -19,9 +24,21 @@ export const authService = {
     );
   },
 
-  // Validate the bearer token against the DB and return the current user.
-  // Used by AuthProvider on cold load instead of trusting localStorage.
-  me: async (): Promise<ServiceResponse<{ user: User }>> => {
-    return wrap(api.get<{ user: User }>("/auth/me").then((r) => r.data));
+  // Validate the auth cookie against the DB and return the current user along
+  // with the token's expiry. Used by AuthProvider on cold load instead of
+  // trusting any client-side state.
+  me: async (): Promise<ServiceResponse<MeResponse>> => {
+    return wrap(api.get<MeResponse>("/auth/me").then((r) => r.data));
+  },
+
+  // Server-side logout: clears the HttpOnly cookie so the session can't be
+  // reused. Fire-and-forget — the SPA clears its own state regardless of the
+  // response since the user is leaving the session either way.
+  logout: async (): Promise<void> => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // Ignore — we log out locally regardless.
+    }
   },
 };

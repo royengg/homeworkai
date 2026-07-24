@@ -4,9 +4,19 @@ export interface User {
   email: string;
 }
 
+// Login/register now set an HttpOnly cookie on the response — the body no
+// longer carries the raw token. `expiresAt` is a unix-seconds timestamp the
+// SPA uses to schedule a proactive logout before the cookie silently expires.
 export interface AuthResponse {
-  token: string;
   user: User;
+  expiresAt: number;
+}
+
+// /auth/me returns the same shape (user + expiresAt) so the cold-load path
+// and the periodic revalidation share one type.
+export interface MeResponse {
+  user: User;
+  expiresAt: number;
 }
 
 export interface LoginCredentials {

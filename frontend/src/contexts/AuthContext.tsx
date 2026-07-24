@@ -20,41 +20,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = "token";
-const USER_KEY = "user";
-
-// Refresh the user's auth state once a minute. Catches token expiry while
+// Refresh the user's auth state once a minute. Catches cookie expiry while
 // the tab is open (no real refresh-token flow yet, so on expiry we log out).
 const REVALIDATE_INTERVAL_MS = 60_000;
 // Pre-emptively log out this many seconds before the JWT actually expires,
 // so users don't see a 401 mid-interaction.
 const EXPIRY_GRACE_SECONDS = 30;
-
-function readStoredToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(token: string, user: User) {
-  try {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-  } catch {
-    // localStorage throws in private mode / quota; auth still works in-session.
-  }
-}
-
-function clearStored() {
-  try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  } catch {
-    // ignore
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -62,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const expiryTimerRef = useRef<number | null>(null);
 
   const logout = useCallback(() => {
-    clearStored();
+    void authService.logout();
     setUser(null);
     if (expiryTimerRef.current !== null) {
       clearTimeout(expiryTimerRef.current);
@@ -70,60 +41,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Schedule a proactive logout for when the bearer token expires. Replaces
-  // any previous timer so we never double-fire.
+  // Schedule a proactive logout for when the auth cookie's JWT expires. The
+  // cookie is HttpOnly so we can't read `exp` from JS — instead the server
+  // sends `expiresAt` (unix seconds) with every /auth/me, /auth/login, and
+  // /auth/register response.
   const scheduleExpiryLogout = useCallback(
-    (token: string) => {
+    (expiresAt: number) => {
       if (expiryTimerRef.current !== null) {
         clearTimeout(expiryTimerRef.current);
         expiryTimerRef.current = null;
       }
-      try {
-        const parts = token.split(".");
-        if (parts.length !== 3) return;
-        const payload = JSON.parse(
-          atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
-        ) as { exp?: number };
-        if (typeof payload.exp !== "number") return;
-        const msUntilLogout =
-          (payload.exp - EXPIRY_GRACE_SECONDS) * 1000 - Date.now();
-        if (msUntilLogout <= 0) {
-          logout();
-          return;
-        }
-        // setTimeout capped at ~24h to stay within int32 range.
-        const delay = Math.min(msUntilLogout, 86_400_000);
-        expiryTimerRef.current = window.setTimeout(
-          () => logout(),
-          delay,
-        ) as unknown as number;
-      } catch {
-        // malformed token — logout() will be triggered by /me failure.
+      const msUntilLogout =
+        (expiresAt - EXPIRY_GRACE_SECONDS) * 1000 - Date.now();
+      if (msUntilLogout <= 0) {
+        logout();
+        return;
       }
+      // setTimeout capped at ~24h to stay within int32 range.
+      const delay = Math.min(msUntilLogout, 86_400_000);
+      expiryTimerRef.current = window.setTimeout(
+        () => logout(),
+        delay,
+      ) as unknown as number;
     },
     [logout],
   );
 
-  // Cold-load validation: ask the server whether the stored token still maps
-  // to a real user. We never trust localStorage blindly — a tampered record
-  // is discarded and the user is treated as logged out.
+  // Cold-load validation: ask the server whether the HttpOnly cookie still
+  // maps to a real user. We never trust any client-side state — the cookie is
+  // opaque to JS, so the only source of truth is /auth/me.
   useEffect(() => {
     let cancelled = false;
-    const token = readStoredToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     authService
       .me()
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error || !data) {
-          clearStored();
           setUser(null);
         } else {
           setUser(data.user);
-          scheduleExpiryLogout(token);
+          scheduleExpiryLogout(data.expiresAt);
         }
       })
       .finally(() => {
@@ -136,21 +93,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [scheduleExpiryLogout]);
 
   // Periodically re-validate while the tab stays open. Catches the case where
-  // the user revoked their token from another device, or the server rotated it.
+  // the user logged out from another device, or the server rotated the cookie.
   useEffect(() => {
     if (!user) return;
     const id = window.setInterval(() => {
-      if (!readStoredToken()) {
-        logout();
-        return;
-      }
       void authService.me().then(({ data, error }) => {
         if (error || !data) logout();
-        else setUser(data.user);
+        else {
+          setUser(data.user);
+          scheduleExpiryLogout(data.expiresAt);
+        }
       });
     }, REVALIDATE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [user, logout]);
+  }, [user, logout, scheduleExpiryLogout]);
 
   const login = useCallback(
     async (credentials: LoginCredentials) => {
@@ -158,9 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error || !data) {
         throw new Error(error || "Login failed");
       }
-      writeStored(data.token, data.user);
       setUser(data.user);
-      scheduleExpiryLogout(data.token);
+      scheduleExpiryLogout(data.expiresAt);
     },
     [scheduleExpiryLogout],
   );
@@ -171,9 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error || !response) {
         throw new Error(error || "Registration failed");
       }
-      writeStored(response.token, response.user);
       setUser(response.user);
-      scheduleExpiryLogout(response.token);
+      scheduleExpiryLogout(response.expiresAt);
     },
     [scheduleExpiryLogout],
   );
