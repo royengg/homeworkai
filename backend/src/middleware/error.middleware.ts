@@ -82,11 +82,20 @@ export function setupErrorHandlers() {
   });
 
   process.on("unhandledRejection", (reason: any) => {
+    // Capture the rejection stack — without it, `reason: {}` is unactionable.
+    const stack =
+      reason instanceof Error
+        ? reason.stack
+        : new Error("unhandledRejection").stack;
     logger.error("Unhandled Rejection", {
       reason: sanitizeLogData(reason),
+      stack,
     });
-    // Exit on unhandled rejection to avoid running in an undefined state.
-    // Node >= 15 already exits by default; this makes the intent explicit.
-    setTimeout(() => process.exit(1), 1000);
+    // Do NOT exit on unhandled rejection. The rate-limit-redis stores fire
+    // startup rejections while their EVALSHA script loads race the Redis
+    // handshake (see redis.config enableOfflineQueue). Exiting here would
+    // kill the API server ~1s after boot. Node >=15 already logs these; we
+    // keep the process alive so a transient rejection can't take the server
+    // down. Truly fatal failures surface as uncaughtException (handled above).
   });
 }
