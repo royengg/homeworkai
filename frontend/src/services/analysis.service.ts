@@ -15,6 +15,19 @@ export const analysisService = {
     );
   },
 
+  render: async (
+    uploadId: string,
+    analysisId: string,
+  ): Promise<ServiceResponse<{ url: string; key: string; pages: number }>> => {
+    return wrap(
+      api
+        .post<{ url: string; key: string; pages: number }>(
+          `/upload/${uploadId}/analyses/${analysisId}/render`,
+        )
+        .then((r) => r.data),
+    );
+  },
+
   getDownloadUrl: async (
     uploadId: string,
     analysisId: string,

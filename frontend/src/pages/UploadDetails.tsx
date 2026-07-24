@@ -280,10 +280,10 @@ export function UploadDetails() {
     setDownloading(true);
     setApiError("");
 
-    const { data, error } = await analysisService.getDownloadUrl(
-      uploadId,
-      analysis.id,
-    );
+    // Render is idempotent: cache hit returns the existing presigned URL,
+    // miss generates + uploads the PDF then returns the URL. Either way we
+    // get a fresh presigned download URL back in one call.
+    const { data, error } = await analysisService.render(uploadId, analysis.id);
 
     if (error) {
       setApiError(error);
