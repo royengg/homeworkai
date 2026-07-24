@@ -40,7 +40,10 @@ export const analyzeJobsQueue = new Queue<Jobs>("analyzeJobs", {
 export async function enqueueAnalysisJob(jobName: string, jobData: Jobs) {
   try {
     const job = await analyzeJobsQueue.add(jobName, jobData, {
-      jobId: `analyze:${jobData.analysisId}`,
+      // BullMQ v5 custom job IDs cannot contain ':' — use a hyphen instead.
+      // The analysisId is already a UUID, so this is still deterministic and
+      // deduplicates duplicate enqueue attempts for the same analysis row.
+      jobId: `analyze-${jobData.analysisId}`,
     });
     logger.info("Analysis job enqueued", {
       jobId: job.id,

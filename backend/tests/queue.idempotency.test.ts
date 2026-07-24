@@ -1,6 +1,6 @@
 // Smoke test for the queue idempotency contract: enqueuing the same analysis
 // twice must not produce two jobs. The dedupe relies on a deterministic jobId
-// (`analyze:<analysisId>`) and BullMQ rejecting a duplicate add. We mock
+// (`analyze-<analysisId>`) and BullMQ rejecting a duplicate add. We mock
 // BullMQ's Queue so we can simulate both the success path and the duplicate
 // error without a live Redis.
 
@@ -39,7 +39,7 @@ describe("enqueueAnalysisJob — idempotency", () => {
 
   it("derives a deterministic jobId from analysisId", async () => {
     const add = getMockAdd();
-    add.mockResolvedValueOnce({ id: "analyze:abc-123" });
+    add.mockResolvedValueOnce({ id: "analyze-abc-123" });
 
     const job = await enqueueAnalysisJob("analyzeJobs", {
       analysisId: "abc-123",
@@ -51,7 +51,7 @@ describe("enqueueAnalysisJob — idempotency", () => {
     expect(add).toHaveBeenCalledWith(
       "analyzeJobs",
       expect.objectContaining({ analysisId: "abc-123" }),
-      { jobId: "analyze:abc-123" },
+      { jobId: "analyze-abc-123" },
     );
     expect(job).not.toBeNull();
   });
@@ -59,7 +59,7 @@ describe("enqueueAnalysisJob — idempotency", () => {
   it("dedupes a second enqueue for the same analysisId (returns null, no throw)", async () => {
     const add = getMockAdd();
     // BullMQ throws when a jobId already exists in the queue.
-    add.mockRejectedValueOnce(new Error("Job analyze:abc-123 already exists"));
+    add.mockRejectedValueOnce(new Error("Job analyze-abc-123 already exists"));
 
     const job = await enqueueAnalysisJob("analyzeJobs", {
       analysisId: "abc-123",
