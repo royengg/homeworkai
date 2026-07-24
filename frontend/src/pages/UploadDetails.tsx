@@ -215,13 +215,18 @@ export function UploadDetails() {
 
     const { data, error } = await uploadService.get(uploadId, signal);
 
+    // Aborted (StrictMode unmount / navigation) returns silent nulls — leave
+    // loading state alone so the caller's loading spinner doesn't snap to
+    // a fake "Material Missing" screen before the retried request lands.
+    if (signal?.aborted) return;
+
     if (error) {
       setApiError(error);
+      setLoading(false);
     } else if (data) {
       setUpload(data.upload);
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [uploadId]);
 
   // Hardened polling: exponential backoff (2s → 15s), max 10 min, pauses

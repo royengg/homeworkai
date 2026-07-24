@@ -34,6 +34,13 @@ export const app = express();
 
 setupErrorHandlers();
 
+// Disable weak ETag generation globally. Express auto-generates ETags from
+// response body hash, which lets browsers send conditional GET (If-None-Match)
+// and receive 304 Not Modified with an empty body — breaking axios's
+// `response.data` (empty) and the frontend's "upload missing" render path.
+// API responses are never static; the status object mutates as analyses run.
+app.set("etag", false);
+
 app.set("trust proxy", config.trustProxyHops);
 
 app.use(cors(corsOptions));
@@ -53,6 +60,17 @@ app.use("/health", healthRoutes);
 
 const apiRoutes = express.Router();
 app.use("/api/v1", apiRoutes);
+
+// Disable ETag + set no-store on all API JSON responses. API data is dynamic
+// (analysis status changes) and weak-ETag conditional GETs returning 304 with
+// an empty body break the SPA's response interceptor (axios sees `data` null
+// → component thinks the upload is "Missing"). No-store also prevents
+// browsers/proxies from serving stale JSON after a user logs out.
+apiRoutes.use((req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  res.removeHeader("ETag");
+  next();
+});
 
 apiRoutes.use(apiLimiter);
 
