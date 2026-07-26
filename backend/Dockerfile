@@ -2,6 +2,7 @@
 FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates openssl \
@@ -21,8 +22,12 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates openssl tini \
+    chromium curl ca-certificates fonts-dejavu-core fonts-noto-core \
+    openssl tini \
     && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # pm2 lets us run the API and worker as a single coordinated process tree.
 RUN npm install -g pm2

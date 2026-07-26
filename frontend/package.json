@@ -19,6 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
+    "katex": "^0.16.25",
     "lucide-react": "^0.323.0",
     "mini-svg-data-uri": "^1.4.4",
     "react": "^18.3.1",
@@ -30,6 +31,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/katex": "^0.16.8",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

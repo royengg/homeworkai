@@ -40,6 +40,7 @@ const envSchema = z.object({
   STORAGE_BUCKET: nonEmptyString.default("homeworkai-dev-uploads"),
 
   GOOGLE_API_KEY: nonEmptyString,
+  PUPPETEER_EXECUTABLE_PATH: nonEmptyString.optional(),
 
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
 });

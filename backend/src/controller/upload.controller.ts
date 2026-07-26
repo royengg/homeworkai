@@ -15,6 +15,7 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { logger } from "../config/logger.config";
 import { config } from "../config/app.config";
 import { encodeCursor, decodeCursor } from "../utils/cursor.util";
+import { getPdfExportPrefixes } from "../utils/export-key.util";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -296,19 +297,21 @@ export async function deleteUpload(
       storageErrors.push(`Original file: ${msg}`);
     }
 
-    try {
-      await deleteObjectsByPrefix({
-        prefix: `exports/${uploadId}/`,
-        bucket: upload.bucket,
-      });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      logger.error("Failed to delete export files from storage", {
-        prefix: `exports/${uploadId}/`,
-        bucket: upload.bucket,
-        error: msg,
-      });
-      storageErrors.push(`Export files: ${msg}`);
+    for (const prefix of getPdfExportPrefixes(uploadId)) {
+      try {
+        await deleteObjectsByPrefix({
+          prefix,
+          bucket: upload.bucket,
+        });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        logger.error("Failed to delete export files from storage", {
+          prefix,
+          bucket: upload.bucket,
+          error: msg,
+        });
+        storageErrors.push(`Export files (${prefix}): ${msg}`);
+      }
     }
 
     for (const analysis of upload.analyses) {

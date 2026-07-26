@@ -7,15 +7,12 @@ import {
   HOMEWORK_SOLVER_PROMPT,
   ASSIGNMENT_BLUEPRINT_PROMPT,
   ASSIGNMENT_SECTION_PROMPT,
+  ASSIGNMENT_REVIEW_PROMPT,
 } from "../utils/prompt.utils";
 import { AnalysisOutput } from "../types/analysis-output.types";
 import { logger } from "../config/logger.config";
 import { env } from "../config/env.schema";
 
-// Cap the input character budget per request to bound token cost. Gemini's
-// context window is large but sending megabytes quadratically inflates cost
-// and degrades success rate. ~150k chars is conservative for Flash-Lite.
-const MAX_INPUT_CHARS = 150_000;
 const GEMINI_TIMEOUT_MS = 60_000;
 const MAX_MODEL_RETRIES = 1;
 const BASE_DELAY_MS = 1000;
@@ -41,14 +38,50 @@ const outputSchema: Schema = {
               type: SchemaType.OBJECT,
               properties: {
                 label: { type: SchemaType.STRING },
+                given: {
+                  type: SchemaType.ARRAY,
+                  items: { type: SchemaType.STRING },
+                },
+                assumptions: {
+                  type: SchemaType.ARRAY,
+                  items: { type: SchemaType.STRING },
+                },
+                steps: {
+                  type: SchemaType.ARRAY,
+                  items: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                      title: { type: SchemaType.STRING },
+                      explanation: { type: SchemaType.STRING },
+                      equation: { type: SchemaType.STRING },
+                    },
+                    required: ["title", "explanation"],
+                  },
+                },
                 answer: { type: SchemaType.STRING },
-                workings: { type: SchemaType.STRING },
+                verification: { type: SchemaType.STRING },
+                source_span_ids: {
+                  type: SchemaType.ARRAY,
+                  items: { type: SchemaType.STRING },
+                },
               },
-              required: ["label", "answer", "workings"],
+              required: [
+                "label",
+                "given",
+                "assumptions",
+                "steps",
+                "answer",
+                "verification",
+                "source_span_ids",
+              ],
             },
           },
+          source_span_ids: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
+          },
         },
-        required: ["qid", "question_text", "parts"],
+        required: ["qid", "question_text", "source_span_ids", "parts"],
       },
     },
   },
@@ -60,6 +93,31 @@ const blueprintSchema: Schema = {
   properties: {
     title: { type: SchemaType.STRING },
     description: { type: SchemaType.STRING },
+    subject: { type: SchemaType.STRING },
+    topic: { type: SchemaType.STRING },
+    audience: { type: SchemaType.STRING },
+    target_word_count: { type: SchemaType.NUMBER },
+    source_scope: {
+      type: SchemaType.STRING,
+      format: "enum",
+      enum: ["source_only", "source_with_general_knowledge"],
+    },
+    required_block_types: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.STRING,
+        format: "enum",
+        enum: [
+          "heading",
+          "paragraph",
+          "bullet_list",
+          "equation",
+          "table",
+          "callout",
+          "diagram",
+        ],
+      },
+    },
     sections: {
       type: SchemaType.ARRAY,
       items: {
@@ -75,22 +133,106 @@ const blueprintSchema: Schema = {
             type: SchemaType.ARRAY,
             items: { type: SchemaType.STRING },
           },
+          target_word_count: { type: SchemaType.NUMBER },
         },
-        required: ["id", "title", "objectives", "key_points"],
+        required: [
+          "id",
+          "title",
+          "objectives",
+          "key_points",
+          "target_word_count",
+        ],
       },
     },
   },
-  required: ["title", "description", "sections"],
+  required: [
+    "title",
+    "description",
+    "subject",
+    "topic",
+    "audience",
+    "target_word_count",
+    "source_scope",
+    "required_block_types",
+    "sections",
+  ],
+};
+
+const contentBlockSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    type: {
+      type: SchemaType.STRING,
+      format: "enum",
+      enum: [
+        "heading",
+        "paragraph",
+        "bullet_list",
+        "equation",
+        "table",
+        "callout",
+        "diagram",
+      ],
+    },
+    content: { type: SchemaType.STRING },
+    title: { type: SchemaType.STRING },
+    caption: { type: SchemaType.STRING },
+    source_span_ids: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+  },
+  required: ["type", "content", "source_span_ids"],
 };
 
 const sectionSchema: Schema = {
   type: SchemaType.OBJECT,
   properties: {
     section_id: { type: SchemaType.STRING },
-    content: { type: SchemaType.STRING },
-    citations: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+    summary: { type: SchemaType.STRING },
+    blocks: { type: SchemaType.ARRAY, items: contentBlockSchema },
+    source_references: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          span_id: { type: SchemaType.STRING },
+          excerpt: { type: SchemaType.STRING },
+        },
+        required: ["span_id", "excerpt"],
+      },
+    },
   },
-  required: ["section_id", "content"],
+  required: ["section_id", "summary", "blocks", "source_references"],
+};
+
+const reviewedSectionSchema: Schema = {
+  ...sectionSchema,
+  properties: {
+    ...sectionSchema.properties,
+    verification: {
+      type: SchemaType.OBJECT,
+      properties: {
+        status: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["verified", "revised"],
+        },
+        issues_fixed: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+        },
+      },
+      required: ["status", "issues_fixed"],
+    },
+  },
+  required: [
+    "section_id",
+    "summary",
+    "blocks",
+    "source_references",
+    "verification",
+  ],
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -176,15 +318,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       },
     );
   });
-}
-
-function clipInput(input: string): string {
-  if (input.length <= MAX_INPUT_CHARS) return input;
-  logger.warn("Clipping LLM input to budget", {
-    originalLength: input.length,
-    clippedTo: MAX_INPUT_CHARS,
-  });
-  return input.slice(0, MAX_INPUT_CHARS);
 }
 
 // Delimiter-fenced user content prevents prompt-injection leakage. The system
@@ -275,7 +408,7 @@ export async function runLLM(pdfData: string): Promise<LLMResult<AnalysisOutput>
   const prompt =
     HOMEWORK_SOLVER_PROMPT +
     "\n\nINPUT JSON:" +
-    fenceUserContent(clipInput(pdfData));
+    fenceUserContent(pdfData);
   return callModelResiliently<AnalysisOutput>(generationConfig, prompt);
 }
 
@@ -290,7 +423,7 @@ export async function generateBlueprint(
   const prompt =
     ASSIGNMENT_BLUEPRINT_PROMPT +
     "\n\nINPUT SOURCE MATERIAL:" +
-    fenceUserContent(clipInput(pdfData));
+    fenceUserContent(pdfData);
   return callModelResiliently<any>(generationConfig, prompt);
 }
 
@@ -298,6 +431,7 @@ export async function generateSection(
   blueprint: any,
   section: any,
   pdfData: string,
+  requiredBlockTypes: string[] = [],
 ): Promise<LLMResult<any>> {
   const generationConfig = {
     temperature: 0.5,
@@ -311,7 +445,41 @@ export async function generateSection(
     fenceUserContent(JSON.stringify(blueprint)) +
     "\n\nTARGET SECTION:" +
     fenceUserContent(JSON.stringify(section)) +
+    "\n\nSECTION PRESENTATION REQUIREMENTS:" +
+    fenceUserContent(
+      requiredBlockTypes.length > 0
+        ? `Include these content block types: ${requiredBlockTypes.join(", ")}.`
+        : "No additional required block types.",
+    ) +
     "\n\nSOURCE MATERIAL:" +
-    fenceUserContent(clipInput(pdfData));
+    fenceUserContent(pdfData);
+  return callModelResiliently<any>(generationConfig, prompt);
+}
+
+export async function reviewAssignmentSection(
+  blueprint: unknown,
+  section: unknown,
+  draft: unknown,
+  pdfData: string,
+  automatedFeedback = "",
+): Promise<LLMResult<any>> {
+  const generationConfig = {
+    temperature: 0.1,
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+    responseSchema: reviewedSectionSchema,
+  };
+  const prompt =
+    ASSIGNMENT_REVIEW_PROMPT +
+    "\n\nBLUEPRINT:" +
+    fenceUserContent(JSON.stringify(blueprint)) +
+    "\n\nTARGET SECTION:" +
+    fenceUserContent(JSON.stringify(section)) +
+    "\n\nDRAFT TO REVIEW:" +
+    fenceUserContent(JSON.stringify(draft)) +
+    "\n\nAUTOMATED QUALITY FEEDBACK:" +
+    fenceUserContent(automatedFeedback || "No additional issues detected.") +
+    "\n\nSOURCE MATERIAL:" +
+    fenceUserContent(pdfData);
   return callModelResiliently<any>(generationConfig, prompt);
 }

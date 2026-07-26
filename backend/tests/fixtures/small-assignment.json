@@ -1,0 +1,102 @@
+{
+  "document_id": "fixture:photosynthesis",
+  "type": "assignment",
+  "assignment": {
+    "title": "How Photosynthesis Supports Life",
+    "blueprint": {
+      "title": "How Photosynthesis Supports Life",
+      "description": "A concise explanation of energy conversion and ecological importance.",
+      "subject": "Biology",
+      "topic": "Photosynthesis",
+      "audience": "Secondary school",
+      "target_word_count": 600,
+      "source_scope": "source_only",
+      "sections": [
+        {
+          "id": "mechanism",
+          "title": "Energy Conversion in the Chloroplast",
+          "objectives": ["Explain how light energy becomes chemical energy"],
+          "key_points": ["Chlorophyll", "Glucose", "Oxygen"],
+          "target_word_count": 300
+        },
+        {
+          "id": "importance",
+          "title": "Ecological Importance",
+          "objectives": ["Connect photosynthesis to food webs and atmospheric oxygen"],
+          "key_points": ["Producers", "Food webs", "Oxygen"],
+          "target_word_count": 300
+        }
+      ]
+    },
+    "sections": [
+      {
+        "section_id": "mechanism",
+        "summary": "Plants capture light energy and store part of it in glucose.",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "content": "Chlorophyll in chloroplasts absorbs light, enabling plants to convert carbon dioxide and water into glucose while releasing oxygen.",
+            "source_span_ids": ["S0001"]
+          },
+          {
+            "type": "equation",
+            "content": "6CO_2 + 6H_2O \\xrightarrow{light} C_6H_{12}O_6 + 6O_2",
+            "caption": "A balanced summary of photosynthesis.",
+            "source_span_ids": ["S0001"]
+          },
+          {
+            "type": "diagram",
+            "title": "Energy pathway",
+            "content": "Sunlight → Chlorophyll → Glucose → Plant growth",
+            "caption": "Light energy becomes stored chemical energy.",
+            "source_span_ids": ["S0001"]
+          },
+          {
+            "type": "table",
+            "columns": ["Inputs", "Outputs"],
+            "rows": [["Carbon dioxide and water", "Glucose and oxygen"]],
+            "caption": "Material inputs and outputs.",
+            "source_span_ids": ["S0001"]
+          }
+        ],
+        "source_references": [
+          {
+            "span_id": "S0001",
+            "excerpt": "Plants use light, carbon dioxide and water to make glucose and release oxygen."
+          }
+        ],
+        "verification": {
+          "status": "verified",
+          "issues_fixed": []
+        }
+      },
+      {
+        "section_id": "importance",
+        "summary": "Photosynthesis supplies biomass and oxygen that support ecosystems.",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "content": "Because plants are producers, the chemical energy they store becomes available to organisms at higher levels of a food web.",
+            "source_span_ids": ["S0002"]
+          },
+          {
+            "type": "callout",
+            "title": "Why it matters",
+            "content": "Photosynthesis links solar energy, biological growth and atmospheric oxygen.",
+            "source_span_ids": ["S0002"]
+          }
+        ],
+        "source_references": [
+          {
+            "span_id": "S0002",
+            "excerpt": "The stored energy supports food webs, and released oxygen supports aerobic organisms."
+          }
+        ],
+        "verification": {
+          "status": "revised",
+          "issues_fixed": ["Clarified the link between producers and consumers."]
+        }
+      }
+    ]
+  }
+}

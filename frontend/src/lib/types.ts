@@ -95,27 +95,89 @@ export interface AssignmentBlueprint {
     title: string;
     objectives: string[];
     key_points: string[];
+    target_word_count?: number;
   }[];
   subject?: string;
   topic?: string;
+  audience?: string;
+  target_word_count?: number;
+  source_scope?: 'source_only' | 'source_with_general_knowledge';
+  required_block_types?: ContentBlock['type'][];
 }
 
 export interface AssignmentSection {
   section_id: string;
-  content: string;
+  summary?: string;
+  blocks?: ContentBlock[];
+  source_references?: SourceReference[];
+  verification?: {
+    status: 'verified' | 'revised';
+    issues_fixed: string[];
+  };
+  content?: string;
   citations?: string[];
 }
+
+export interface SourceReference {
+  span_id: string;
+  excerpt: string;
+}
+
+type SourcedBlock = {
+  source_span_ids: string[];
+};
+
+export type ContentBlock =
+  | (SourcedBlock & {
+      type: 'heading';
+      content: string;
+      level: 3 | 4;
+    })
+  | (SourcedBlock & { type: 'paragraph'; content: string })
+  | (SourcedBlock & { type: 'bullet_list'; items: string[] })
+  | (SourcedBlock & {
+      type: 'equation';
+      content: string;
+      caption?: string;
+    })
+  | (SourcedBlock & {
+      type: 'table';
+      columns: string[];
+      rows: string[][];
+      caption?: string;
+    })
+  | (SourcedBlock & {
+      type: 'callout';
+      title: string;
+      content: string;
+    })
+  | (SourcedBlock & {
+      type: 'diagram';
+      title: string;
+      content: string;
+      caption: string;
+    });
 
 export interface Question {
   qid: string;
   question_text: string;
+  source_span_ids?: string[];
   parts: QuestionPart[];
 }
 
 export interface QuestionPart {
   label: string;
+  given?: string[];
+  assumptions?: string[];
+  steps?: {
+    title: string;
+    explanation: string;
+    equation?: string;
+  }[];
   answer: string;
-  workings: string;
+  verification?: string;
+  source_span_ids?: string[];
+  workings?: string;
 }
 
 export interface PresignResponse {

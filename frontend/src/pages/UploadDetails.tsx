@@ -1,203 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { uploadService } from "@/services/upload.service";
 import {
   analysisService,
   type AnalysisMode,
 } from "@/services/analysis.service";
 import { useAnalysisPolling } from "@/lib/useAnalysisPolling";
-import type { Upload, AnalysisOutput } from "@/lib/types";
+import type { Upload } from "@/lib/types";
 import {
   ArrowLeft,
   Bot,
   RefreshCw,
   AlertCircle,
   ChevronDown,
-  ChevronRight,
   Search,
   Loader2,
   Download,
   ScrollText,
-  BookOpenCheck,
   Calendar,
   Layers,
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Separator } from "@/components/ui/Separator";
-
-const MarkdownRenderer = ({ content }: { content: AnalysisOutput }) => {
-  if (!content) return null;
-
-  if (content.type === "assignment" && content.assignment) {
-    const { assignment } = content;
-    return (
-      <div className="space-y-16 pb-20">
-        <header className="space-y-4 text-center border-b border-border/10 pb-12">
-          <Badge
-            variant="outline"
-            className="px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-bold text-primary border-primary/20 bg-primary/5"
-          >
-            Final Report
-          </Badge>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-[1.1]">
-            {assignment.title}
-          </h1>
-          <p className="text-xl text-muted-foreground/80 max-w-2xl mx-auto font-medium leading-relaxed italic">
-            "{assignment.blueprint?.description}"
-          </p>
-        </header>
-
-        <div className="space-y-24">
-          {assignment.sections?.map((section, idx: number) => (
-            <motion.section
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              key={section.section_id || idx}
-              className="relative"
-            >
-              <div className="absolute -left-12 top-0 hidden lg:flex flex-col items-center gap-4">
-                <div className="h-10 w-10 rounded-full border border-border flex items-center justify-center font-bold text-xs text-zinc-400 bg-background self-start">
-                  {idx + 1}
-                </div>
-                <div className="w-px h-full bg-gradient-to-b from-border/50 to-transparent" />
-              </div>
-
-              <div className="space-y-8">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                    {assignment.blueprint?.sections?.find(
-                      (s) => s.id === section.section_id,
-                    )?.title || `Chapter ${idx + 1}`}
-                  </h2>
-                  <div className="h-1 w-16 bg-zinc-900 dark:bg-zinc-100 rounded-full" />
-                </div>
-
-                <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/80 leading-relaxed">
-                  {section.content
-                    .split("\n")
-                    .map((para: string, pIdx: number) =>
-                      para.trim() ? (
-                        <p key={pIdx} className="mb-6">
-                          {para}
-                        </p>
-                      ) : null,
-                    )}
-                </div>
-
-                {section.citations && section.citations.length > 0 && (
-                  <div className="mt-12 p-8 glass-card rounded-3xl border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10">
-                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 mb-6 flex items-center gap-2">
-                      <BookOpenCheck className="h-3.5 w-3.5" /> Source Material
-                    </h4>
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {section.citations.map((c, i: number) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-3 text-xs text-muted-foreground leading-relaxed bg-white/70 dark:bg-zinc-800/80 p-4 rounded-xl border border-zinc-100 dark:border-zinc-700/70"
-                        >
-                          <span className="text-zinc-900 dark:text-zinc-100 font-bold shrink-0">
-                            [{i + 1}]
-                          </span>
-                          {c}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </motion.section>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (
-    content.type === "homework" &&
-    content.questions &&
-    content.questions.length > 0
-  ) {
-    const questions = content.questions;
-    return (
-      <div className="space-y-16">
-        {questions.map((q, qIdx: number) => (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: qIdx * 0.1 }}
-            key={q.qid}
-            className="group space-y-10"
-          >
-            <div className="space-y-8">
-              <div className="flex items-start gap-6">
-                <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 font-bold text-lg shadow-premium">
-                  {q.qid.replace(/Q/i, "")}
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-400">
-                    Problem Analysis
-                  </span>
-                  <h3 className="text-2xl font-bold tracking-tight text-foreground">
-                    {q.question_text}
-                  </h3>
-                </div>
-              </div>
-
-              <div className="space-y-12 pl-4 md:pl-10 border-l border-zinc-100 dark:border-zinc-800 ml-6 md:ml-6 pt-4">
-                {q.parts?.map((p, idx: number) => (
-                  <div key={idx} className="space-y-8 relative">
-                    <div className="absolute -left-[17.5px] md:-left-[41.5px] top-4 w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
-
-                    <div className="space-y-4">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-500 text-[10px] font-bold uppercase tracking-widest border border-zinc-200 dark:border-zinc-800">
-                        Output {p.label}
-                      </div>
-                      <div className="text-xl font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 bg-zinc-50/50 dark:bg-zinc-900/20 p-8 rounded-3xl border border-zinc-100 dark:border-zinc-800/50 shadow-soft">
-                        {p.answer}
-                      </div>
-                    </div>
-
-                    {p.workings && (
-                      <div className="space-y-6">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
-                          <ChevronRight className="h-3 w-3 text-zinc-300" />{" "}
-                          Derivation Path
-                        </span>
-                        <div className="text-sm text-muted-foreground/90 leading-[1.8] bg-zinc-50/30 dark:bg-zinc-800/40 p-10 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-700/60 font-medium">
-                          {p.workings
-                            .split("\n")
-                            .map((line: string, lIdx: number) => (
-                              <p key={lIdx} className="mb-4 last:mb-0">
-                                {line}
-                              </p>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            {qIdx < questions.length - 1 && (
-              <Separator className="opacity-30" />
-            )}
-          </motion.div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-lg leading-relaxed whitespace-pre-wrap font-inter text-foreground/80 glass-card p-10 rounded-3xl border-white/5 text-center">
-      <Bot className="h-10 w-10 mx-auto text-zinc-200 mb-4" />
-      No structured synthesis data available for this document.
-    </div>
-  );
-};
+import { AnalysisRenderer } from "@/components/analysis/AnalysisRenderer";
 
 export function UploadDetails() {
   const { uploadId } = useParams<{ uploadId: string }>();
@@ -518,7 +344,13 @@ export function UploadDetails() {
                   </div>
                 ) : (
                   <div className="relative z-10 transition-all duration-700">
-                    <MarkdownRenderer content={analysis.output as any} />
+                    {analysis?.output ? (
+                      <AnalysisRenderer content={analysis.output} />
+                    ) : (
+                      <p className="py-20 text-center text-sm text-zinc-500">
+                        The analysis output is not available yet.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

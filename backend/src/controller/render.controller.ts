@@ -7,11 +7,12 @@ import { s3 } from "../config/storage.config";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { presignGet, headObject } from "../services/storage.service";
 import { logger } from "../config/logger.config";
+import { getPdfExportKey } from "../utils/export-key.util";
 
 /**
  * POST render — idempotent: if the PDF already exists in storage we just
  * return its download URL. Otherwise we generate and upload it. Cache key is
- * `exports/${uploadId}/${analysisId}.pdf`.
+ * versioned so renderer upgrades cannot serve a stale artifact.
  */
 export async function renderAnalysis(
   req: AuthenticatedRequest,
@@ -38,7 +39,7 @@ export async function renderAnalysis(
     });
     if (!analysis) return res.status(404).json({ error: "Analysis not found" });
 
-    const key = `exports/${uploadId}/${analysisId}.pdf`;
+    const key = getPdfExportKey(uploadId, analysisId);
 
     // Cache hit — don't regenerate.
     try {
@@ -119,7 +120,8 @@ export async function getDownloadUrl(
     });
     if (!analysis) return res.status(404).json({ error: "Analysis not found" });
 
-    const key = analysis.solutionKey ?? `exports/${uploadId}/${analysisId}.pdf`;
+    const key =
+      analysis.solutionKey ?? getPdfExportKey(uploadId, analysisId);
     try {
       await headObject({ key, bucket: upload.bucket });
     } catch {
