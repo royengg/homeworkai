@@ -14,14 +14,15 @@ import { env } from "../config/env.schema";
 
 // Cap the input character budget per request to bound token cost. Gemini's
 // context window is large but sending megabytes quadratically inflates cost
-// and degrades success rate. ~150k chars is conservative for 2.5-flash.
+// and degrades success rate. ~150k chars is conservative for Flash-Lite.
 const MAX_INPUT_CHARS = 150_000;
 const GEMINI_TIMEOUT_MS = 60_000;
-const MAX_RETRIES_PER_MODEL = 1;
+const MAX_MODEL_RETRIES = 1;
 const BASE_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 30_000;
 
 const llm = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
+export const GEMINI_MODEL = "gemini-3.1-flash-lite" as const;
 
 const outputSchema: Schema = {
   type: SchemaType.OBJECT,
@@ -91,15 +92,6 @@ const sectionSchema: Schema = {
   },
   required: ["section_id", "content"],
 };
-
-const MODELS_FALLBACK_CHAIN = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash-lite",
-  "gemini-flash-latest",
-  "gemini-flash-lite-latest",
-];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -218,80 +210,59 @@ async function callModelResiliently<T>(
   generationConfig: any,
   prompt: string,
 ): Promise<LLMResult<T>> {
-  let lastError: any = null;
+  let retryCount = 0;
 
-  for (const modelName of MODELS_FALLBACK_CHAIN) {
-    let retryCount = 0;
+  while (true) {
+    try {
+      const model = llm.getGenerativeModel(
+        { model: GEMINI_MODEL, generationConfig },
+        { timeout: GEMINI_TIMEOUT_MS },
+      );
+      const res = await withTimeout(
+        model.generateContent(prompt),
+        GEMINI_TIMEOUT_MS + 5_000,
+      );
+      const rawText = res.response.text();
 
-    while (retryCount <= MAX_RETRIES_PER_MODEL) {
       try {
-        const model = llm.getGenerativeModel(
-          { model: modelName, generationConfig },
-          { timeout: GEMINI_TIMEOUT_MS },
-        );
-        const res = await withTimeout(
-          model.generateContent(prompt),
-          GEMINI_TIMEOUT_MS + 5_000,
-        );
-        const rawText = res.response.text();
-
-        try {
-          const data = JSON.parse(rawText) as T;
-          const meta = res.response.usageMetadata;
-          const usage: LLMUsage | null = meta
-            ? {
-                promptTokens: meta.promptTokenCount ?? 0,
-                completionTokens: meta.candidatesTokenCount ?? 0,
-                totalTokens: meta.totalTokenCount ?? 0,
-              }
-            : null;
-          return { data, usage, model: modelName };
-        } catch (parseErr) {
-          logger.error(`JSON Parse Error with ${modelName}`, {
-            error: parseErr instanceof Error ? parseErr.message : parseErr,
-            snippet: rawText.substring(0, 200),
-          });
-          lastError = parseErr;
-          break;
-        }
-      } catch (e: any) {
-        lastError = e;
-
-        if (isTransientError(e)) {
-          const retryDelay = extractRetryDelay(e) || extractRetryDelay(e.error);
-          // Retry in-model only on rate-limits; for other transients, fall
-          // through to the next model right away (they're usually healthier).
-          if (isRateLimitError(e) && retryDelay && retryCount < MAX_RETRIES_PER_MODEL) {
-            const delay = retryDelay + retryCount * BASE_DELAY_MS;
-            logger.warn(
-              `Rate limit hit for ${modelName}, retrying in ${Math.ceil(
-                delay / 1000,
-              )}s (attempt ${retryCount + 1}/${MAX_RETRIES_PER_MODEL + 1})...`,
-            );
-            await sleep(delay);
-            retryCount++;
-            continue;
-          }
-
-          logger.warn(
-            `Transient error on ${modelName} (${
-              e?.status || e?.code || "unknown"
-            }), falling back to next model...`,
-          );
-          await sleep(BASE_DELAY_MS);
-          break;
-        } else {
-          // Non-transient: bubble up immediately so the job fails fast.
-          throw e;
-        }
+        const data = JSON.parse(rawText) as T;
+        const meta = res.response.usageMetadata;
+        const usage: LLMUsage | null = meta
+          ? {
+              promptTokens: meta.promptTokenCount ?? 0,
+              completionTokens: meta.candidatesTokenCount ?? 0,
+              totalTokens: meta.totalTokenCount ?? 0,
+            }
+          : null;
+        return { data, usage, model: GEMINI_MODEL };
+      } catch (parseErr) {
+        logger.error(`JSON Parse Error with ${GEMINI_MODEL}`, {
+          error: parseErr instanceof Error ? parseErr.message : parseErr,
+          snippet: rawText.substring(0, 200),
+        });
+        throw parseErr;
       }
+    } catch (error: any) {
+      if (!isTransientError(error) || retryCount >= MAX_MODEL_RETRIES) {
+        throw error;
+      }
+
+      const retryDelay =
+        extractRetryDelay(error) ||
+        extractRetryDelay(error.error) ||
+        BASE_DELAY_MS;
+      const delay = retryDelay + retryCount * BASE_DELAY_MS;
+      retryCount++;
+
+      logger.warn(
+        `Transient error on ${GEMINI_MODEL} (${
+          error?.status || error?.code || "unknown"
+        }), retrying the same model in ${Math.ceil(delay / 1000)}s ` +
+          `(attempt ${retryCount + 1}/${MAX_MODEL_RETRIES + 1})...`,
+      );
+      await sleep(delay);
     }
   }
-
-  throw (
-    lastError ||
-    new Error("All models in fallback chain failed to provide valid output")
-  );
 }
 
 export async function runLLM(pdfData: string): Promise<LLMResult<AnalysisOutput>> {

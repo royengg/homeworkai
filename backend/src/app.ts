@@ -14,7 +14,6 @@ import { authMiddleware } from "./middleware/auth.middleware";
 import { corsOptions } from "./config/cors.config";
 import {
   apiLimiter,
-  authLimiter,
   analyzeLimiter,
   healthReadyLimiter,
 } from "./middleware/ratelimit.middleware";
@@ -74,7 +73,7 @@ apiRoutes.use((req, res, next) => {
 
 apiRoutes.use(apiLimiter);
 
-apiRoutes.use("/auth", authLimiter, authRoutes);
+apiRoutes.use("/auth", authRoutes);
 
 apiRoutes.use("/parse", authMiddleware, parseRoutes);
 apiRoutes.use("/docxparse", authMiddleware, docxParseRoutes);

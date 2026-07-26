@@ -8,7 +8,7 @@ HomeworkAI is a production-grade SaaS application designed to help students and 
 
 ### Strategic AI Analysis
 - **Advanced PDF Parsing**: High-fidelity text extraction from academic documents.
-- **AI Engine**: Google Gemini 2.5 Flash (Optimized for speed and long-form assignments)
+- **AI Engine**: Google Gemini 3.1 Flash-Lite
 - **Step-by-Step Solutions**: Don't just get the answer—understand the process with detailed workings.
 
 ### Production Hardening
