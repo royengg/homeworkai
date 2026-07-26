@@ -40,7 +40,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
-COPY ecosystem.config.prod.js ./
+COPY ecosystem.prod.config.js ./
 
 # Non-root runtime — drop to a dedicated user for the worker and API.
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app \
@@ -55,4 +55,4 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 # Run both the API and the worker through pm2-runtime. They scale together
 # for a single-VPS deployment; split into separate containers if you need to
 # scale them independently.
-CMD ["pm2-runtime", "ecosystem.config.prod.js"]
+CMD ["pm2-runtime", "ecosystem.prod.config.js"]
