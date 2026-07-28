@@ -1,0 +1,6 @@
+# Local-only override. Coolify should use compose.yml by itself so no host
+# ports bypass its managed reverse proxy.
+services:
+  frontend:
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"

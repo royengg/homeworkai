@@ -100,6 +100,11 @@ npm run dev
 
 ---
 
+## Deployment
+
+For the production Docker Compose topology and Coolify setup instructions, see
+[COOLIFY_DEPLOYMENT.md](./COOLIFY_DEPLOYMENT.md).
+
 ## 📁 Project Structure
 
 ```text

@@ -1,0 +1,90 @@
+# Production Compose definition used by Coolify.
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  PORT: "3000"
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in Coolify}
+  JWT_SECRET: ${JWT_SECRET:?Set a JWT_SECRET with at least 32 characters}
+  REDIS_URL: redis://redis:6379
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS to the public frontend URL}
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+  RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+  MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  LOG_FILE_PATH: /tmp/homeworkai-logs
+  STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:?Set the R2 or S3 endpoint}
+  STORAGE_REGION: ${STORAGE_REGION:-auto}
+  STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:?Set the storage access key}
+  STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY:?Set the storage secret key}
+  STORAGE_BUCKET: ${STORAGE_BUCKET:?Set the storage bucket}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY:?Set the Gemini API key}
+  # Coolify proxy -> frontend Nginx -> API. Override this if your proxy chain
+  # has a different number of trusted hops.
+  TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
+
+x-backend-service: &backend-service
+  environment: *backend-environment
+  depends_on:
+    redis:
+      condition: service_started
+  restart: unless-stopped
+  stop_grace_period: 35s
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    stop_grace_period: 10s
+
+  backend:
+    <<: *backend-service
+    image: &backend-image homeworkai-backend-${COOLIFY_RESOURCE_UUID:-local}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    environment:
+      <<: *backend-environment
+      # This project has a Prisma schema but no migration history. The API
+      # entrypoint safely synchronizes it before opening the HTTP port.
+      RUN_DATABASE_SYNC: "true"
+    expose:
+      - "3000"
+
+  worker:
+    <<: *backend-service
+    # Reuse the API image instead of compiling/exporting an identical image a
+    # second time. `docker compose up --build` builds `backend` first.
+    image: *backend-image
+    pull_policy: never
+    command:
+      - node
+      - dist/workers/analyze.worker.js
+
+  frontend:
+    image: homeworkai-frontend-${COOLIFY_RESOURCE_UUID:-local}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
+    depends_on:
+      backend:
+        condition: service_started
+    expose:
+      - "80"
+    restart: unless-stopped
+    stop_grace_period: 10s
+
+volumes:
+  redis-data:

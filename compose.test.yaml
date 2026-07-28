@@ -1,0 +1,17 @@
+# Infrastructure-only test overlay. It supplies an ephemeral PostgreSQL
+# database and publishes the frontend on loopback; production still uses the
+# external DATABASE_URL and compose.yml by itself.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: homeworkai
+      POSTGRES_USER: homeworkai
+      POSTGRES_PASSWORD: homeworkai-test-password
+    tmpfs:
+      - /var/lib/postgresql/data
+    restart: "no"
+
+  frontend:
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
