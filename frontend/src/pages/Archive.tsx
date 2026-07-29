@@ -16,7 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, isUploadReady } from "@/lib/utils";
 
 const container = {
   hidden: { opacity: 0 },
@@ -128,6 +128,16 @@ export function Archive() {
             className="text-[10px] bg-[#1c1b19] text-[#f7f3ee] font-mono-alt uppercase tracking-widest px-2 py-0 border leading-none"
           >
             Ready
+          </Badge>
+        );
+      case "processed_with_warnings":
+      case "completed_with_warnings":
+        return (
+          <Badge
+            variant="outline"
+            className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 font-mono-alt uppercase tracking-widest px-2 py-0 border leading-none"
+          >
+            Ready · Review
           </Badge>
         );
       case "failed":
@@ -266,20 +276,20 @@ export function Archive() {
               <motion.div
                 key={upload.uploadId}
                 variants={item}
-                role={upload.status === "processed" ? "button" : undefined}
-                tabIndex={upload.status === "processed" ? 0 : undefined}
+                role={isUploadReady(upload.status) ? "button" : undefined}
+                tabIndex={isUploadReady(upload.status) ? 0 : undefined}
                 aria-label={
-                  upload.status === "processed"
+                  isUploadReady(upload.status)
                     ? `Open ${upload.key.split("/").pop() ?? "upload"}`
                     : undefined
                 }
                 onClick={() =>
-                  upload.status === "processed" &&
+                  isUploadReady(upload.status) &&
                   navigate(`/upload/${upload.uploadId}`)
                 }
                 onKeyDown={(e) => {
                   if (
-                    upload.status === "processed" &&
+                    isUploadReady(upload.status) &&
                     (e.key === "Enter" || e.key === " ")
                   ) {
                     e.preventDefault();
@@ -288,7 +298,7 @@ export function Archive() {
                 }}
                 className={cn(
                   "group relative rounded-[1.5rem] p-5 border transition-all duration-500 overflow-hidden flex flex-col justify-between h-48",
-                  upload.status === "processed"
+                  isUploadReady(upload.status)
                     ? "bg-white/80 dark:bg-[#121212] border-[#1c1b19] dark:border-[#2a2a2a] hover:-translate-y-1 hover:scale-[1.01] hover:border-[#706a62] dark:hover:border-[#5a5a5a] hover:bg-white dark:hover:bg-[#181818] cursor-pointer shadow-soft transition-[transform,background-color,border-color] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#706a62] dark:focus-visible:ring-[#5a5a5a]"
                     : "bg-white/40 dark:bg-[#0f0f0f] border-[#1c1b19] dark:border-[#2a2a2a] opacity-70",
                 )}

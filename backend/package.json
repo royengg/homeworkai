@@ -8,7 +8,7 @@
     "build": "tsc",
     "start:api": "node dist/app.js",
     "start:worker": "node dist/workers/analyze.worker.js",
-    "test": "jest --forceExit --detectOpenHandles"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --forceExit --detectOpenHandles"
   },
   "keywords": [],
   "author": "",

@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  userId    String      @id @default(uuid())
+  userId    String   @id @default(uuid())
   name      String
   email     String   @unique
   password  String
@@ -17,71 +17,75 @@ model User {
 }
 
 enum UploadStatus {
-  uploading   
-  uploaded    
-  processing 
-  processed  
-  failed      
+  uploading
+  uploaded
+  processing
+  processed
+  processed_with_warnings
+  failed
 }
 
-model Upload {  
-  uploadId    String        @id @default(uuid())
+model Upload {
+  uploadId String @id @default(uuid())
 
-  user        User         @relation(fields: [userId], references: [userId])
-  userId      String
+  user   User   @relation(fields: [userId], references: [userId])
+  userId String
 
-  bucket      String
-  key         String
+  bucket String
+  key    String
 
-  size        Int?          
-  mime        String?
-  etag        String?
-  checksum    String?       
+  size     Int?
+  mime     String?
+  etag     String?
+  checksum String?
 
-  status      UploadStatus  @default(uploading)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  status      UploadStatus     @default(uploading)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   confirmedAt DateTime?
   processedAt DateTime?
-  error       String?       
-  parseResult ParseResult? 
+  error       String?
+  parseResult ParseResult?
   analyses    AnalysisResult[]
 
-  @@unique([bucket, key])  
+  @@unique([bucket, key])
   @@index([userId])
 }
 
 model ParseResult {
-  id        String  @id @default(uuid())
+  id String @id @default(uuid())
 
-  upload    Upload  @relation(fields: [uploadId], references: [uploadId], onDelete: Cascade)
-  uploadId  String  @unique
+  upload   Upload @relation(fields: [uploadId], references: [uploadId], onDelete: Cascade)
+  uploadId String @unique
 
-  text      String  
-  numPages  Int?
-  createdAt DateTime @default(now())
+  text        String
+  content     Json?
+  diagnostics Json?
+  numPages    Int?
+  createdAt   DateTime @default(now())
 }
 
 enum AnalysisStatus {
   queued
   running
   completed
+  completed_with_warnings
   failed
 }
 
 model AnalysisResult {
-  id        String  @id @default(uuid())
- 
-  upload    Upload  @relation(fields: [uploadId], references: [uploadId], onDelete: Cascade)
-  uploadId  String
- 
-  prompt    String?
-  model     String?
+  id String @id @default(uuid())
 
-  status    AnalysisStatus @default(queued)
-  error     String?
-  
-  output    Json
+  upload   Upload @relation(fields: [uploadId], references: [uploadId], onDelete: Cascade)
+  uploadId String
+
+  prompt String?
+  model  String?
+
+  status AnalysisStatus @default(queued)
+  error  String?
+
+  output Json
 
   usagePromptTokens     Int?
   usageCompletionTokens Int?

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { uploadService } from "@/services/upload.service";
 import type { Upload } from "@/lib/types";
+import { isAnalysisComplete } from "@/lib/utils";
 
 interface Options {
   uploadId: string;
@@ -98,8 +99,8 @@ export function useAnalysisPolling({
 
     onUpdateRef.current(data.upload);
     const status = data.upload.analyses?.[0]?.status;
-    if (status === "completed" || status === "failed") {
-      onTerminalRef.current(status);
+    if (isAnalysisComplete(status) || status === "failed") {
+      onTerminalRef.current(status === "failed" ? "failed" : "completed");
       stop();
       return;
     }

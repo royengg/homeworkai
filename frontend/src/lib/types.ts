@@ -30,7 +30,13 @@ export interface RegisterData {
   password: string;
 }
 
-export type UploadStatus = 'uploading' | 'uploaded' | 'processing' | 'processed' | 'failed';
+export type UploadStatus =
+  | 'uploading'
+  | 'uploaded'
+  | 'processing'
+  | 'processed'
+  | 'processed_with_warnings'
+  | 'failed';
 
 export interface Upload {
   uploadId: string;
@@ -52,15 +58,49 @@ export interface PaginatedResponse<T> {
   nextCursor: string | null;
 }
 
+export interface ParsedDocument {
+  text: string;
+  blocks: ParsedBlock[];
+  diagnostics: ParseDiagnostics;
+  numPages?: number;
+}
+
 export interface ParseResult {
   id: string;
   uploadId: string;
   text: string;
+  content?: ParsedBlock[];
+  diagnostics?: ParseDiagnostics;
   numPages?: number;
   createdAt: string;
 }
 
-export type AnalysisStatus = 'queued' | 'running' | 'completed' | 'failed';
+export interface ParsedBlock {
+  id: string;
+  type: 'heading' | 'paragraph' | 'list' | 'table' | 'note' | 'image' | 'chart';
+  text: string;
+  page?: number;
+  level?: number;
+  rows?: string[][];
+}
+
+export interface ParseDiagnostics {
+  parser: 'officeparser' | 'pdf-parse';
+  parserVersion: string;
+  totalUnits: number;
+  parsedUnits: number;
+  coverage: number;
+  characterCount: number;
+  visualFallbackRecommended: boolean;
+  warnings: { code: string; message: string; unit?: number }[];
+}
+
+export type AnalysisStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'completed_with_warnings'
+  | 'failed';
 
 export interface AnalysisResult {
   id: string;
@@ -79,6 +119,11 @@ export interface AnalysisOutput {
   document_id: string;
   type: 'homework' | 'assignment';
   questions?: Question[];
+  warnings?: string[];
+  source_coverage?: {
+    total_spans: number;
+    inspected_spans: number;
+  };
   assignment?: {
     title: string;
     blueprint: AssignmentBlueprint;
@@ -114,6 +159,8 @@ export interface AssignmentSection {
     status: 'verified' | 'revised';
     issues_fixed: string[];
   };
+  status?: 'completed' | 'needs_review';
+  error?: string;
   content?: string;
   citations?: string[];
 }
@@ -163,6 +210,8 @@ export interface Question {
   question_text: string;
   source_span_ids?: string[];
   parts: QuestionPart[];
+  status?: 'completed' | 'needs_review';
+  error?: string;
 }
 
 export interface QuestionPart {

@@ -34,6 +34,57 @@ QUALITY BAR
 - document_id must be a stable human-readable identifier derived from the text.
 `;
 
+export const HOMEWORK_INVENTORY_PROMPT = `
+You identify homework questions in one ordered chunk of source material.
+Return only JSON matching the provided response schema.
+
+${SHARED_SOURCE_RULES}
+
+INVENTORY REQUIREMENTS
+- Extract every complete or partial question visible in this chunk.
+- Preserve the wording and source order.
+- Include all source_span_ids that contain the question or its sub-parts.
+- Do not solve questions.
+- Do not turn explanatory source paragraphs into questions.
+- If a question crosses a chunk boundary, include the visible portion; the
+  application will merge overlapping candidates.
+- Put ambiguity or missing context in warnings instead of dropping a question.
+`;
+
+export const HOMEWORK_QUESTION_PROMPT = `
+You are a precise tutor solving exactly one identified homework question.
+Return only JSON matching the provided response schema.
+
+${SHARED_SOURCE_RULES}
+
+SOLUTION REQUIREMENTS
+- Solve only the supplied target question.
+- Preserve all explicit sub-parts. A question without explicit sub-parts gets
+  one part labelled "(a)".
+- Separate givens from assumptions.
+- Use short titled steps and put formulas in the equation field.
+- Verify numerical substitutions, units, signs, and command verbs.
+- If source information is ambiguous or missing, state that limitation in the
+  answer and solve only what the evidence supports.
+- Do not expose hidden chain-of-thought; provide concise derivations and checks.
+`;
+
+export const ASSIGNMENT_BLUEPRINT_REFINEMENT_PROMPT = `
+You are refining an existing academic assignment blueprint after reading an
+additional ordered chunk of the source. Return only JSON matching the provided
+response schema.
+
+${SHARED_SOURCE_RULES}
+
+REFINEMENT REQUIREMENTS
+- Preserve valid requirements already present in the blueprint.
+- Add or correct requirements revealed by the new source chunk.
+- Keep stable section IDs wherever their purpose remains the same.
+- Keep 2–6 non-overlapping sections and realistic word-count allocations.
+- Do not add presentation elements or claims unsupported by either the existing
+  blueprint or the additional source.
+`;
+
 export const ASSIGNMENT_BLUEPRINT_PROMPT = `
 You are an academic editor planning a concise, evidence-grounded assignment.
 Return only JSON matching the provided response schema.

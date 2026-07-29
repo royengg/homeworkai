@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { parseDocxController } from "../controller/docx.parse.controller";
+import { parseDocxController } from "../controller/document.parse.controller";
 const docxParseRoutes = Router();
 
 docxParseRoutes.post("/:uploadId", parseDocxController);

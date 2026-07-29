@@ -10,6 +10,10 @@ import { logger } from "../config/logger.config";
 import { config } from "../config/app.config";
 import { magicBytesMatchMime } from "../utils/file-type.util";
 
+/**
+ * @deprecated Retained as legacy code. No application route imports this
+ * controller.
+ */
 export async function parsePDFController(
   req: AuthenticatedRequest,
   res: Response,

@@ -10,6 +10,10 @@ import { parseDocx } from "../services/docx.parse.service";
 import { config } from "../config/app.config";
 import { magicBytesMatchMime } from "../utils/file-type.util";
 
+/**
+ * @deprecated Retained as legacy code. No application route imports this
+ * controller.
+ */
 export async function parseDocxController(
   req: AuthenticatedRequest,
   res: Response,

@@ -1,4 +1,9 @@
-import { makeLLMInputFromText } from "../src/utils/format.utils";
+import {
+  makeLLMInputFromText,
+  makeLLMInputsFromText,
+  parseSourceInputs,
+  selectRelevantSource,
+} from "../src/utils/format.utils";
 import { resultSchema } from "../src/schema/result.schema";
 import { buildAnalysisDocumentHtml } from "../src/services/render-document.service";
 import {
@@ -48,6 +53,50 @@ describe("analysis output contracts", () => {
     expect(input.spans.at(-1).text).toContain("diagram and a table");
   });
 
+  it("includes every span exactly once across large source chunks", () => {
+    const text = Array.from(
+      { length: 80 },
+      (_, index) => `Question ${index + 1}: explain concept ${index + 1}.`,
+    ).join("\n");
+    const chunks = makeLLMInputsFromText(text, {
+      maxSpanLength: 80,
+      maxChunkChars: 240,
+    }).map((chunk) => JSON.parse(chunk));
+    const spans = chunks.flatMap((chunk) => chunk.spans);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(new Set(spans.map((span: { id: string }) => span.id)).size).toBe(
+      spans.length,
+    );
+    expect(spans.map((span: { text: string }) => span.text).join(" ")).toContain(
+      "Question 80",
+    );
+    expect(chunks.every((chunk) => chunk.manifest.chunkCount === chunks.length)).toBe(
+      true,
+    );
+  });
+
+  it("selects relevant source spans for non-English questions", () => {
+    const source = parseSourceInputs([
+      makeLLMInputFromText(
+        [
+          "This paragraph discusses an unrelated introduction.",
+          "Η φωτοσύνθεση μετατρέπει την ηλιακή ενέργεια σε χημική ενέργεια.",
+        ].join("\n"),
+        { maxSpanLength: 60 },
+      ),
+    ]);
+    const selected = JSON.parse(
+      selectRelevantSource(source, "Πώς λειτουργεί η φωτοσύνθεση;", 100),
+    );
+
+    expect(selected.spans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: expect.stringContaining("φωτοσύνθεση") }),
+      ]),
+    );
+  });
+
   it("keeps previously stored slim results readable", () => {
     const legacy = resultSchema.parse({
       document_id: "legacy-1",
@@ -63,6 +112,34 @@ describe("analysis output contracts", () => {
 
     expect(legacy.questions?.[0]?.parts[0]?.steps).toEqual([]);
     expect(legacy.questions?.[0]?.parts[0]?.workings).toBe("Subtract 1.");
+  });
+
+  it("renders partial failures and warning text without hiding good output", () => {
+    const result = resultSchema.parse({
+      document_id: "partial-1",
+      type: "homework",
+      warnings: ["Page 2 could not be read."],
+      questions: [
+        {
+          qid: "Q1",
+          question_text: "What is 2 + 2?",
+          parts: [{ label: "(a)", answer: "4", workings: "Add the values." }],
+        },
+        {
+          qid: "Q2",
+          question_text: "Interpret the missing diagram.",
+          parts: [],
+          status: "needs_review",
+          error: "The diagram could not be interpreted reliably.",
+        },
+      ],
+    });
+
+    const html = buildAnalysisDocumentHtml(result);
+    expect(html).toContain("Final answer");
+    expect(html).toContain("Page 2 could not be read.");
+    expect(html).toContain("Review needed");
+    expect(html).toContain("The diagram could not be interpreted reliably.");
   });
 
   it("renders structured assignment blocks and escapes source content", () => {

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Lightbulb,
   TableProperties,
+  AlertTriangle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Separator } from "@/components/ui/Separator";
@@ -17,6 +18,26 @@ import type {
   ContentBlock,
   QuestionPart,
 } from "@/lib/types";
+
+function AnalysisWarnings({ warnings }: { warnings: string[] | undefined }) {
+  if (!warnings?.length) return null;
+  const uniqueWarnings = [...new Set(warnings)];
+  return (
+    <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+      <div className="flex items-center gap-2 font-semibold">
+        <AlertTriangle className="h-4 w-4" />
+        Completed with review notes
+      </div>
+      <ul className="mt-3 space-y-1 pl-5 text-xs leading-5">
+        {uniqueWarnings.map((warning) => (
+          <li key={warning} className="list-disc">
+            {warning}
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
 
 function Equation({ value }: { value: string }) {
   const markup = useMemo(
@@ -237,9 +258,13 @@ function SourceNotes({ section }: { section: AssignmentSection }) {
 function AssignmentView({ content }: { content: AnalysisOutput }) {
   const assignment = content.assignment;
   if (!assignment) return null;
+  const planById = new Map(
+    assignment.blueprint.sections.map((section) => [section.id, section]),
+  );
 
   return (
     <div className="space-y-16 pb-20">
+      <AnalysisWarnings warnings={content.warnings} />
       <header className="space-y-5 border-b border-zinc-200 pb-12 text-center dark:border-zinc-700">
         <Badge
           variant="outline"
@@ -269,9 +294,7 @@ function AssignmentView({ content }: { content: AnalysisOutput }) {
 
       <div className="space-y-24">
         {assignment.sections?.map((section, index) => {
-          const plan = assignment.blueprint.sections.find(
-            (candidate) => candidate.id === section.section_id,
-          );
+          const plan = planById.get(section.section_id);
           return (
             <motion.section
               initial={{ opacity: 0, y: 24 }}
@@ -296,20 +319,33 @@ function AssignmentView({ content }: { content: AnalysisOutput }) {
                 </div>
               </header>
 
-              <article className="space-y-6">
-                {section.blocks && section.blocks.length > 0 ? (
-                  section.blocks.map((block, blockIndex) => (
-                    <ContentBlockView
-                      key={`${blockIndex}-${block.type}`}
-                      block={block}
-                    />
-                  ))
-                ) : (
-                  <LegacySectionContent content={section.content ?? ""} />
-                )}
-              </article>
+              {section.status === "needs_review" ? (
+                <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <strong>This section needs review.</strong>
+                    <p className="mt-1 text-xs leading-5 opacity-80">
+                      {section.error ??
+                        "A reliable structured section could not be generated."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <article className="space-y-6">
+                  {section.blocks && section.blocks.length > 0 ? (
+                    section.blocks.map((block, blockIndex) => (
+                      <ContentBlockView
+                        key={`${blockIndex}-${block.type}`}
+                        block={block}
+                      />
+                    ))
+                  ) : (
+                    <LegacySectionContent content={section.content ?? ""} />
+                  )}
+                </article>
+              )}
 
-              {section.verification ? (
+              {section.status !== "needs_review" && section.verification ? (
                 <div className="mt-8 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
@@ -420,6 +456,7 @@ function HomeworkPart({ part }: { part: QuestionPart }) {
 function HomeworkView({ content }: { content: AnalysisOutput }) {
   return (
     <div className="space-y-16">
+      <AnalysisWarnings warnings={content.warnings} />
       {content.questions?.map((question, questionIndex) => (
         <motion.section
           initial={{ opacity: 0, x: -16 }}
@@ -441,11 +478,24 @@ function HomeworkView({ content }: { content: AnalysisOutput }) {
               </h3>
             </div>
           </header>
-          <div className="ml-6 space-y-12 border-l border-zinc-200 pl-4 dark:border-zinc-700 md:pl-10">
-            {question.parts.map((part, index) => (
-              <HomeworkPart key={`${index}-${part.label}`} part={part} />
-            ))}
-          </div>
+          {question.status === "needs_review" ? (
+            <div className="ml-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <strong>This question needs review.</strong>
+                <p className="mt-1 text-xs leading-5 opacity-80">
+                  {question.error ??
+                    "A reliable structured solution could not be generated."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="ml-6 space-y-12 border-l border-zinc-200 pl-4 dark:border-zinc-700 md:pl-10">
+              {question.parts.map((part, index) => (
+                <HomeworkPart key={`${index}-${part.label}`} part={part} />
+              ))}
+            </div>
+          )}
           {questionIndex < (content.questions?.length ?? 0) - 1 ? (
             <Separator className="opacity-40" />
           ) : null}

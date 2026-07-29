@@ -8,6 +8,7 @@ import {
 } from "@/services/analysis.service";
 import { useAnalysisPolling } from "@/lib/useAnalysisPolling";
 import type { Upload } from "@/lib/types";
+import { isAnalysisComplete } from "@/lib/utils";
 import {
   ArrowLeft,
   Bot,
@@ -155,6 +156,7 @@ export function UploadDetails() {
   }
 
   const analysis = upload.analyses?.[0];
+  const analysisComplete = isAnalysisComplete(analysis?.status);
 
   return (
     <div className="space-y-10">
@@ -210,7 +212,7 @@ export function UploadDetails() {
         </div>
 
         <div className="flex items-center gap-3">
-          {analysis?.status === "completed" && (
+          {analysisComplete ? (
             <Button
               variant="outline"
               onClick={handleDownload}
@@ -224,7 +226,7 @@ export function UploadDetails() {
               )}
               Export Solution
             </Button>
-          )}
+          ) : null}
           {/* {(!analysis || analysis.status === "failed") && (
             <Button
               onClick={handleAnalyze}
@@ -259,6 +261,9 @@ export function UploadDetails() {
             <div className="flex items-center gap-3">
               <span className="hidden rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[10px] font-mono-alt uppercase tracking-widest text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 sm:inline-flex">
                 Source text
+                {upload.parseResult?.diagnostics
+                  ? ` · ${Math.round(upload.parseResult.diagnostics.coverage * 100)}% coverage`
+                  : ""}
               </span>
               <ChevronDown
                 className={`h-4 w-4 text-zinc-500 transition-transform dark:text-zinc-300 ${sourceOpen ? "rotate-180" : ""}`}
@@ -266,7 +271,20 @@ export function UploadDetails() {
             </div>
           </button>
 
-          {sourceOpen && (
+          {upload.parseResult?.diagnostics?.warnings.length ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <strong>Extraction completed with warnings.</strong>{" "}
+              {upload.parseResult.diagnostics.warnings
+                .slice(0, 3)
+                .map((warning) => warning.message)
+                .join(" ")}
+              {upload.parseResult.diagnostics.warnings.length > 3
+                ? ` ${upload.parseResult.diagnostics.warnings.length - 3} more warning(s).`
+                : ""}
+            </div>
+          ) : null}
+
+          {sourceOpen ? (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -285,7 +303,7 @@ export function UploadDetails() {
                 )}
               </div>
             </motion.div>
-          )}
+          ) : null}
         </aside>
 
         <main className="space-y-3">
@@ -297,7 +315,7 @@ export function UploadDetails() {
                   Analysis Output
                 </h3>
               </div>
-              {analysis?.status !== "completed" && (
+              {!analysisComplete ? (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-800">
                     <button
@@ -323,7 +341,7 @@ export function UploadDetails() {
                     {analyzing ? "Generating..." : "Generate"}
                   </Button>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {(analysis || analyzing) && (

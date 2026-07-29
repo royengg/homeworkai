@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
+import { Readable } from "stream";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3, storageBucket } from "../config/storage.config";
 import { logger } from "../config/logger.config";
@@ -31,6 +32,32 @@ export async function presignPut(params: {
 
   const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
   return { bucket, key: params.key, url, expiresAt };
+}
+
+export async function getObjectBuffer(params: {
+  key: string;
+  bucket?: string;
+  maxBytes: number;
+}): Promise<Buffer> {
+  const bucket = params.bucket ?? storageBucket;
+  const response = await s3.send(
+    new GetObjectCommand({ Bucket: bucket, Key: params.key }),
+  );
+  if (!(response.Body instanceof Readable)) {
+    throw new Error("Storage stream unavailable");
+  }
+
+  const chunks: Buffer[] = [];
+  let accumulated = 0;
+  for await (const value of response.Body) {
+    const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+    accumulated += chunk.length;
+    if (accumulated > params.maxBytes) {
+      throw new Error("File exceeds size limit");
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 export async function headObject(params: { key: string; bucket?: string }) {

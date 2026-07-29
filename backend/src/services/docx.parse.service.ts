@@ -11,6 +11,10 @@ const PARSER_CONFIG: OfficeParserConfig = {
   outputErrorToConsole: false,
 };
 
+/**
+ * @deprecated Retained as legacy code. Production DOCX parsing uses
+ * document.parse.service.ts.
+ */
 export async function parseDocx(buffer: Buffer): Promise<string> {
   try {
     const parser = await OfficeParser.parseOffice(buffer, PARSER_CONFIG);

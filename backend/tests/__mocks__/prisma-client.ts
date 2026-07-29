@@ -6,6 +6,7 @@ export const AnalysisStatus = {
   queued: "queued",
   running: "running",
   completed: "completed",
+  completed_with_warnings: "completed_with_warnings",
   failed: "failed",
 } as const;
 
@@ -26,6 +27,9 @@ export class PrismaClient {
   user = makeModelStub("user");
   $disconnect = jest.fn().mockResolvedValue(undefined);
   $connect = jest.fn().mockResolvedValue(undefined);
+  $transaction = jest.fn().mockImplementation((operations: Promise<unknown>[]) =>
+    Promise.all(operations),
+  );
 }
 
 function makeModelStub(_name: string) {

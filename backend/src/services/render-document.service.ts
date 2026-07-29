@@ -133,6 +133,14 @@ function renderSourceNotes(section: AssignmentSection): string {
     .join("")}</ol></aside>`;
 }
 
+function renderAnalysisWarnings(data: AnalysisOutput): string {
+  if (!data.warnings?.length) return "";
+  return `<aside class="analysis-warnings">
+    <h2>Items to review</h2>
+    <ul>${data.warnings.map((warning) => `<li>${renderInline(warning)}</li>`).join("")}</ul>
+  </aside>`;
+}
+
 function renderAssignment(data: AnalysisOutput): string {
   const assignment = data.assignment;
   if (!assignment) return "";
@@ -163,15 +171,18 @@ function renderAssignment(data: AnalysisOutput): string {
         )
         .join("")}</ol>
     </section>
+    ${renderAnalysisWarnings(data)}
     ${sections
       .map((section, index) => {
         const plan = blueprint.sections.find(
           (candidate) => candidate.id === section.section_id,
         );
         const body =
-          section.blocks.length > 0
-            ? section.blocks.map(renderBlock).join("")
-            : renderLegacyText(section.content ?? "");
+          section.status === "needs_review"
+            ? `<aside class="review-needed"><strong>Review needed</strong><p>${renderInline(section.error ?? "This section could not be generated reliably.")}</p></aside>`
+            : section.blocks.length > 0
+              ? section.blocks.map(renderBlock).join("")
+              : renderLegacyText(section.content ?? "");
         return `<section class="chapter page-break">
           <header class="chapter-header">
             <span>${String(index + 1).padStart(2, "0")}</span>
@@ -230,11 +241,16 @@ function renderHomework(data: AnalysisOutput): string {
       <p class="dek">A structured solution with explicit givens, reproducible steps, and an independent final check.</p>
       <small>Document ${escapeHtml(data.document_id)}</small>
     </section>
+    ${renderAnalysisWarnings(data)}
     ${(data.questions ?? [])
       .map(
         (question, index) => `<section class="problem page-break">
           <header class="chapter-header"><span>${String(index + 1).padStart(2, "0")}</span><div><p class="eyebrow">${escapeHtml(question.qid)}</p><h2>${renderInline(question.question_text)}</h2></div></header>
-          ${question.parts.map(renderHomeworkPart).join("")}
+          ${
+            question.status === "needs_review"
+              ? `<aside class="review-needed"><strong>Review needed</strong><p>${renderInline(question.error ?? "This question could not be solved reliably.")}</p></aside>`
+              : question.parts.map(renderHomeworkPart).join("")
+          }
         </section>`,
       )
       .join("")}
@@ -281,6 +297,9 @@ const DOCUMENT_STYLES = `
   .steps{list-style:none;counter-reset:steps;padding:0;margin:0}.steps>li{counter-increment:steps;position:relative;padding:0 0 6mm 10mm;border-left:1px solid var(--line);break-inside:avoid}.steps>li:before{content:counter(steps);position:absolute;left:-3.4mm;top:0;width:6.5mm;height:6.5mm;border-radius:50%;background:white;border:2px solid var(--brand);color:var(--brand);font:700 8pt Arial;text-align:center;line-height:5.6mm}.steps h4{margin:0 0 1mm}.steps p{margin:0}
   .answer{break-inside:avoid;background:linear-gradient(135deg,#172033,#293958);color:white;border-radius:4mm;padding:5mm 6mm;margin:3mm 0}.answer span{display:block;text-transform:uppercase;letter-spacing:.14em;color:#b9c7e6;font-size:7.5pt;font-weight:700;margin-bottom:1.5mm}.answer strong{font-size:13pt}
   .verification{break-inside:avoid;border:1px solid #b8e1cf;background:#f0fdf7;border-radius:3mm;padding:4mm 5mm;margin-top:4mm}.verification strong{color:#08724b;text-transform:uppercase;letter-spacing:.12em;font-size:7.5pt}.verification p{margin:1mm 0 0}
+  .analysis-warnings,.review-needed{break-inside:avoid;border:1px solid #f3c77a;background:#fffbeb;border-radius:3mm;padding:5mm 6mm;color:#713f12}
+  .analysis-warnings{margin:8mm}.analysis-warnings h2{font-size:13pt;margin:0 0 2mm}.analysis-warnings ul{margin:0;padding-left:5mm}.analysis-warnings li{margin-bottom:1mm}
+  .review-needed{margin:6mm 0}.review-needed strong{display:block;text-transform:uppercase;letter-spacing:.12em;font-size:8pt}.review-needed p{margin:2mm 0 0}
   math{font-size:1.1em}
 `;
 

@@ -3,6 +3,7 @@ import type {
   Upload,
   PaginatedResponse,
   PresignResponse,
+  ParsedDocument,
 } from "@/lib/types";
 import { wrap, type ServiceResponse } from "./service-utils";
 
@@ -70,12 +71,18 @@ export const uploadService = {
     );
   },
 
-  parse: async (uploadId: string): Promise<ServiceResponse<unknown>> => {
-    return wrap(api.post(`/parse/${uploadId}`).then((r) => r.data));
+  parse: async (uploadId: string): Promise<ServiceResponse<ParsedDocument>> => {
+    return wrap(
+      api.post<ParsedDocument>(`/parse/${uploadId}`).then((r) => r.data),
+    );
   },
 
-  parseDocx: async (uploadId: string): Promise<ServiceResponse<unknown>> => {
-    return wrap(api.post(`/docxparse/${uploadId}`).then((r) => r.data));
+  parseDocx: async (
+    uploadId: string,
+  ): Promise<ServiceResponse<ParsedDocument>> => {
+    return wrap(
+      api.post<ParsedDocument>(`/docxparse/${uploadId}`).then((r) => r.data),
+    );
   },
 
   paste: async (text: string): Promise<ServiceResponse<{ uploadId: string }>> => {

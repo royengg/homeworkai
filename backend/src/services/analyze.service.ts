@@ -1,91 +1,113 @@
 import {
   GoogleGenerativeAI,
   SchemaType,
+  type Part,
   type Schema,
 } from "@google/generative-ai";
 import {
-  HOMEWORK_SOLVER_PROMPT,
+  HOMEWORK_INVENTORY_PROMPT,
+  HOMEWORK_QUESTION_PROMPT,
   ASSIGNMENT_BLUEPRINT_PROMPT,
+  ASSIGNMENT_BLUEPRINT_REFINEMENT_PROMPT,
   ASSIGNMENT_SECTION_PROMPT,
   ASSIGNMENT_REVIEW_PROMPT,
 } from "../utils/prompt.utils";
-import { AnalysisOutput } from "../types/analysis-output.types";
 import { logger } from "../config/logger.config";
 import { env } from "../config/env.schema";
+import {
+  assignmentBlueprintSchema,
+  assignmentSectionSchema,
+  homeworkInventorySchema,
+  questionSolutionSchema,
+} from "../schema/result.schema";
+import { normalizeGeneratedSection } from "../utils/analysis-normalization.util";
+import type { GeminiDocumentReference } from "./gemini-file.service";
 
 const GEMINI_TIMEOUT_MS = 60_000;
 const MAX_MODEL_RETRIES = 1;
+const MAX_RESPONSE_REPAIRS = 1;
 const BASE_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 30_000;
 
 const llm = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 export const GEMINI_MODEL = "gemini-3.1-flash-lite" as const;
 
-const outputSchema: Schema = {
+const questionPartProviderSchema: Schema = {
   type: SchemaType.OBJECT,
   properties: {
-    document_id: { type: SchemaType.STRING },
+    label: { type: SchemaType.STRING },
+    given: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+    assumptions: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+    steps: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING },
+          explanation: { type: SchemaType.STRING },
+          equation: { type: SchemaType.STRING },
+        },
+        required: ["title", "explanation"],
+      },
+    },
+    answer: { type: SchemaType.STRING },
+    verification: { type: SchemaType.STRING },
+    source_span_ids: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
+  },
+  required: [
+    "label",
+    "given",
+    "assumptions",
+    "steps",
+    "answer",
+    "verification",
+    "source_span_ids",
+  ],
+};
+
+const homeworkInventoryProviderSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
     questions: {
       type: SchemaType.ARRAY,
       items: {
         type: SchemaType.OBJECT,
         properties: {
-          qid: { type: SchemaType.STRING },
           question_text: { type: SchemaType.STRING },
-          parts: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                label: { type: SchemaType.STRING },
-                given: {
-                  type: SchemaType.ARRAY,
-                  items: { type: SchemaType.STRING },
-                },
-                assumptions: {
-                  type: SchemaType.ARRAY,
-                  items: { type: SchemaType.STRING },
-                },
-                steps: {
-                  type: SchemaType.ARRAY,
-                  items: {
-                    type: SchemaType.OBJECT,
-                    properties: {
-                      title: { type: SchemaType.STRING },
-                      explanation: { type: SchemaType.STRING },
-                      equation: { type: SchemaType.STRING },
-                    },
-                    required: ["title", "explanation"],
-                  },
-                },
-                answer: { type: SchemaType.STRING },
-                verification: { type: SchemaType.STRING },
-                source_span_ids: {
-                  type: SchemaType.ARRAY,
-                  items: { type: SchemaType.STRING },
-                },
-              },
-              required: [
-                "label",
-                "given",
-                "assumptions",
-                "steps",
-                "answer",
-                "verification",
-                "source_span_ids",
-              ],
-            },
-          },
           source_span_ids: {
             type: SchemaType.ARRAY,
             items: { type: SchemaType.STRING },
           },
         },
-        required: ["qid", "question_text", "source_span_ids", "parts"],
+        required: ["question_text", "source_span_ids"],
       },
     },
+    warnings: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+    },
   },
-  required: ["document_id", "questions"],
+  required: ["questions", "warnings"],
+};
+
+const homeworkQuestionProviderSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    parts: {
+      type: SchemaType.ARRAY,
+      items: questionPartProviderSchema,
+    },
+  },
+  required: ["parts"],
 };
 
 const blueprintSchema: Schema = {
@@ -339,44 +361,65 @@ export interface LLMResult<T> {
   model: string;
 }
 
+type ModelPrompt = string | Array<string | Part>;
+
+function withDocument(
+  prompt: string,
+  document?: GeminiDocumentReference,
+): ModelPrompt {
+  if (!document) return prompt;
+  return [
+    {
+      fileData: {
+        fileUri: document.uri,
+        mimeType: document.mimeType,
+      },
+    },
+    prompt,
+  ];
+}
+
+function appendCorrection(prompt: ModelPrompt, correction: string): ModelPrompt {
+  return Array.isArray(prompt) ? [...prompt, correction] : prompt + correction;
+}
+
 async function callModelResiliently<T>(
   generationConfig: any,
-  prompt: string,
+  prompt: ModelPrompt,
+  parseResponse: (value: unknown) => T,
 ): Promise<LLMResult<T>> {
-  let retryCount = 0;
+  let transportRetries = 0;
+  let responseRepairs = 0;
+  let activePrompt = prompt;
+  const accumulatedUsage: LLMUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+  };
 
   while (true) {
+    let rawText: string;
     try {
       const model = llm.getGenerativeModel(
         { model: GEMINI_MODEL, generationConfig },
         { timeout: GEMINI_TIMEOUT_MS },
       );
       const res = await withTimeout(
-        model.generateContent(prompt),
+        model.generateContent(activePrompt),
         GEMINI_TIMEOUT_MS + 5_000,
       );
-      const rawText = res.response.text();
-
-      try {
-        const data = JSON.parse(rawText) as T;
-        const meta = res.response.usageMetadata;
-        const usage: LLMUsage | null = meta
-          ? {
-              promptTokens: meta.promptTokenCount ?? 0,
-              completionTokens: meta.candidatesTokenCount ?? 0,
-              totalTokens: meta.totalTokenCount ?? 0,
-            }
-          : null;
-        return { data, usage, model: GEMINI_MODEL };
-      } catch (parseErr) {
-        logger.error(`JSON Parse Error with ${GEMINI_MODEL}`, {
-          error: parseErr instanceof Error ? parseErr.message : parseErr,
-          snippet: rawText.substring(0, 200),
-        });
-        throw parseErr;
+      rawText = res.response.text();
+      const meta = res.response.usageMetadata;
+      if (meta) {
+        accumulatedUsage.promptTokens += meta.promptTokenCount ?? 0;
+        accumulatedUsage.completionTokens += meta.candidatesTokenCount ?? 0;
+        accumulatedUsage.totalTokens += meta.totalTokenCount ?? 0;
       }
     } catch (error: any) {
-      if (!isTransientError(error) || retryCount >= MAX_MODEL_RETRIES) {
+      if (
+        !isTransientError(error) ||
+        transportRetries >= MAX_MODEL_RETRIES
+      ) {
         throw error;
       }
 
@@ -384,37 +427,94 @@ async function callModelResiliently<T>(
         extractRetryDelay(error) ||
         extractRetryDelay(error.error) ||
         BASE_DELAY_MS;
-      const delay = retryDelay + retryCount * BASE_DELAY_MS;
-      retryCount++;
+      const delay = retryDelay + transportRetries * BASE_DELAY_MS;
+      transportRetries++;
 
       logger.warn(
         `Transient error on ${GEMINI_MODEL} (${
           error?.status || error?.code || "unknown"
         }), retrying the same model in ${Math.ceil(delay / 1000)}s ` +
-          `(attempt ${retryCount + 1}/${MAX_MODEL_RETRIES + 1})...`,
+          `(attempt ${transportRetries + 1}/${MAX_MODEL_RETRIES + 1})...`,
       );
       await sleep(delay);
+      continue;
+    }
+
+    try {
+      const data = parseResponse(JSON.parse(rawText));
+      const usage =
+        accumulatedUsage.totalTokens > 0 ? accumulatedUsage : null;
+      return { data, usage, model: GEMINI_MODEL };
+    } catch (error) {
+      logger.warn(`Invalid structured response from ${GEMINI_MODEL}`, {
+        error: error instanceof Error ? error.message : String(error),
+        snippet: rawText.substring(0, 200),
+        responseRepairs,
+      });
+      if (responseRepairs >= MAX_RESPONSE_REPAIRS) throw error;
+
+      responseRepairs++;
+      const issue =
+        error instanceof Error ? error.message.slice(0, 600) : "invalid output";
+      activePrompt = appendCorrection(
+        prompt,
+        "\n\nRESPONSE CORRECTION:\n" +
+        "The previous response did not satisfy the required JSON structure or validation rules. " +
+          `Correct the response and return JSON only. Validation issue: ${issue}`,
+      );
     }
   }
 }
 
-export async function runLLM(pdfData: string): Promise<LLMResult<AnalysisOutput>> {
+export async function extractHomeworkQuestions(
+  sourceData: string,
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof homeworkInventorySchema.parse>>> {
   const generationConfig = {
-    temperature: 0.2,
-    maxOutputTokens: 8000,
+    temperature: 0.1,
+    maxOutputTokens: 4096,
     responseMimeType: "application/json",
-    responseSchema: outputSchema,
+    responseSchema: homeworkInventoryProviderSchema,
   };
   const prompt =
-    HOMEWORK_SOLVER_PROMPT +
-    "\n\nINPUT JSON:" +
-    fenceUserContent(pdfData);
-  return callModelResiliently<AnalysisOutput>(generationConfig, prompt);
+    HOMEWORK_INVENTORY_PROMPT +
+    "\n\nSOURCE CHUNK:" +
+    fenceUserContent(sourceData);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) => homeworkInventorySchema.parse(value),
+  );
+}
+
+export async function solveHomeworkQuestion(
+  question: unknown,
+  sourceData: string,
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof questionSolutionSchema.parse>>> {
+  const generationConfig = {
+    temperature: 0.2,
+    maxOutputTokens: 4096,
+    responseMimeType: "application/json",
+    responseSchema: homeworkQuestionProviderSchema,
+  };
+  const prompt =
+    HOMEWORK_QUESTION_PROMPT +
+    "\n\nTARGET QUESTION:" +
+    fenceUserContent(JSON.stringify(question)) +
+    "\n\nRELEVANT SOURCE MATERIAL:" +
+    fenceUserContent(sourceData);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) => questionSolutionSchema.parse(value),
+  );
 }
 
 export async function generateBlueprint(
   pdfData: string,
-): Promise<LLMResult<any>> {
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof assignmentBlueprintSchema.parse>>> {
   const generationConfig = {
     temperature: 0.3,
     responseMimeType: "application/json",
@@ -424,7 +524,34 @@ export async function generateBlueprint(
     ASSIGNMENT_BLUEPRINT_PROMPT +
     "\n\nINPUT SOURCE MATERIAL:" +
     fenceUserContent(pdfData);
-  return callModelResiliently<any>(generationConfig, prompt);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) => assignmentBlueprintSchema.parse(value),
+  );
+}
+
+export async function refineBlueprint(
+  blueprint: unknown,
+  sourceData: string,
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof assignmentBlueprintSchema.parse>>> {
+  const generationConfig = {
+    temperature: 0.2,
+    responseMimeType: "application/json",
+    responseSchema: blueprintSchema,
+  };
+  const prompt =
+    ASSIGNMENT_BLUEPRINT_REFINEMENT_PROMPT +
+    "\n\nEXISTING BLUEPRINT:" +
+    fenceUserContent(JSON.stringify(blueprint)) +
+    "\n\nADDITIONAL SOURCE CHUNK:" +
+    fenceUserContent(sourceData);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) => assignmentBlueprintSchema.parse(value),
+  );
 }
 
 export async function generateSection(
@@ -432,7 +559,8 @@ export async function generateSection(
   section: any,
   pdfData: string,
   requiredBlockTypes: string[] = [],
-): Promise<LLMResult<any>> {
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof assignmentSectionSchema.parse>>> {
   const generationConfig = {
     temperature: 0.5,
     maxOutputTokens: 8192,
@@ -453,7 +581,12 @@ export async function generateSection(
     ) +
     "\n\nSOURCE MATERIAL:" +
     fenceUserContent(pdfData);
-  return callModelResiliently<any>(generationConfig, prompt);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) =>
+      assignmentSectionSchema.parse(normalizeGeneratedSection(value)),
+  );
 }
 
 export async function reviewAssignmentSection(
@@ -462,7 +595,8 @@ export async function reviewAssignmentSection(
   draft: unknown,
   pdfData: string,
   automatedFeedback = "",
-): Promise<LLMResult<any>> {
+  document?: GeminiDocumentReference,
+): Promise<LLMResult<ReturnType<typeof assignmentSectionSchema.parse>>> {
   const generationConfig = {
     temperature: 0.1,
     maxOutputTokens: 8192,
@@ -481,5 +615,10 @@ export async function reviewAssignmentSection(
     fenceUserContent(automatedFeedback || "No additional issues detected.") +
     "\n\nSOURCE MATERIAL:" +
     fenceUserContent(pdfData);
-  return callModelResiliently<any>(generationConfig, prompt);
+  return callModelResiliently(
+    generationConfig,
+    withDocument(prompt, document),
+    (value) =>
+      assignmentSectionSchema.parse(normalizeGeneratedSection(value)),
+  );
 }

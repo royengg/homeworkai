@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { parsePDFController } from "../controller/parse.controller";
+import { parsePDFController } from "../controller/document.parse.controller";
 
 const parseRoutes: Router = Router();
 

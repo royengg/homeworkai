@@ -98,6 +98,8 @@ export const assignmentSectionSchema = z.object({
   blocks: z.array(contentBlockSchema).default([]),
   source_references: z.array(sourceReferenceSchema).default([]),
   verification: sectionVerificationSchema.optional(),
+  status: z.enum(["completed", "needs_review"]).default("completed"),
+  error: z.string().optional(),
   // Retained for analyses created before the structured-block migration.
   content: z.string().optional(),
   citations: z.array(z.string()).optional(),
@@ -123,19 +125,41 @@ export const questionPartSchema = z.object({
   workings: z.string().optional(),
 });
 
+export const homeworkQuestionCandidateSchema = z.object({
+  question_text: z.string().min(1),
+  source_span_ids: z.array(z.string()).default([]),
+});
+
+export const homeworkInventorySchema = z.object({
+  questions: z.array(homeworkQuestionCandidateSchema).default([]),
+  warnings: z.array(z.string()).default([]),
+});
+
+export const questionSolutionSchema = z.object({
+  parts: z.array(questionPartSchema).min(1),
+});
+
+export const questionSchema = z.object({
+  qid: z.string(),
+  question_text: z.string(),
+  source_span_ids: z.array(z.string()).default([]),
+  parts: z.array(questionPartSchema),
+  status: z.enum(["completed", "needs_review"]).default("completed"),
+  error: z.string().optional(),
+});
+
 export const resultSchema = z.object({
   schema_version: z.number().int().default(1),
   document_id: z.string(),
   type: z.enum(["homework", "assignment"]).default("homework"),
-  questions: z
-    .array(
-      z.object({
-        qid: z.string(),
-        question_text: z.string(),
-        source_span_ids: z.array(z.string()).default([]),
-        parts: z.array(questionPartSchema),
-      }),
-    )
+  questions: z.array(questionSchema).optional(),
+  question_inventory: z.array(homeworkQuestionCandidateSchema).optional(),
+  warnings: z.array(z.string()).optional(),
+  source_coverage: z
+    .object({
+      total_spans: z.number().int().nonnegative(),
+      inspected_spans: z.number().int().nonnegative(),
+    })
     .optional(),
   assignment: z
     .object({
